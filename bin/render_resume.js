@@ -1,4 +1,4 @@
-#!bin/phantomjs
+#!bin/phantomjs/phantomjs
 var fs = require('fs');
 var page = require('webpage').create();
 page.paperSize = {
