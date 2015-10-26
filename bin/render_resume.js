@@ -10,7 +10,7 @@ page.paperSize = {
   }
 };
 page.open(fs.workingDirectory + '/resume.html', function() {
-  page.render('resume.pdf', {format: 'pdf', quality: '100'});
+  page.render('brian_stack.pdf', {format: 'pdf', quality: '100'});
   phantom.exit();
 });
 
