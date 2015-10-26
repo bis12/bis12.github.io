@@ -1,26 +1,46 @@
 @import url(https://fonts.googleapis.com/css?family=Open+Sans:300);
 
-.dark {
-    background: transparent linear-gradient(#343E5C, #223149) repeat scroll 0% 0%;
-    color: #EEE;
+body {
+    border-top: 1px dashed #00468B;
+    padding-top: 2em;
 }
 
-.title {
-    font-size: 150%;
+.contact {
+    font-size: 110%;
+    margin-top: 0;
+    margin-bottom: 0.3em;
 }
 
-.headline {
-    font-size: 230%;
-    text-align: center;
-    margin: 3em;
+.contact > a {
+    margin-right: 1em;
+    text-decoration: none;
+    color: #555;
 }
 
-.pop {
-    color: #FF8300;
+h1 {
+    color: #00468B;
+    margin-bottom: 0;
+    margin-top: 0;
 }
 
-.title i {
-    color: #00EE00;
+h2 {
+    color: #00468B;
+    margin-top: 0.1em;
+    margin-bottom: 0.3em;
+}
+
+h3 {
+    margin-top: 0.2em;
+    margin-bottom: 0.2em;
+}
+
+h4 {
+    margin-top: 0.1em;
+    margin-bottom: 0.1em;
+}
+
+h3 > small {
+    color: #AAA;
 }
 
 li {
