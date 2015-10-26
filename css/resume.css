@@ -55,7 +55,7 @@ blockquote {
     margin-bottom: 0.9em;
 }
 
-.pure-g [class*="pure-u"] {
+html, button, input, select, textarea, .pure-g [class*="pure-u"] {
     font-family: 'Open Sans', sans-serif;
 }
 

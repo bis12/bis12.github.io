@@ -3,14 +3,15 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Brian Stack</title>
         <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
+        <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/grids-responsive-min.css">
         <link rel="stylesheet" href="css/fa/css/font-awesome.min.css">
         <link rel="stylesheet" href="css/local.css">
     </head>
     <body>
         <div class="pure-g">
-            <div class="pure-u-1-5">
+            <div class="pure-u-md-1-5 pure-u-1">
             </div>
-            <div class="pure-u-3-5">
+            <div class="pure-u-md-3-5 pure-u-1 l-box">
                 <div class="title">
                     <h1>Brian Stack<small> does things with computers.</small></h1>
                     <div class="contact">
@@ -23,13 +24,13 @@
         </div>
         <!-- Thanks to https://github.com/asottile for fixing something that was wrong with this in a PR that I ended up overwriting by accident. -->
         <div class="pure-g">
-            <div class="pure-u-1-5">
+            <div class="pure-u-md-1-5 pure-u-1">
             </div>
-            <div class="pure-u-3-5">
+            <div class="pure-u-md-3-5 pure-u-1 l-box">
                 <hr/>
                 <small>October 3, 2015</small>
                 <h2>Attacking the Monolith</h2>
-                <h5 class="leader">Following adapted from a talk I gave at <a href="http://acm.cwru.edu/acm/conference/2015">CWRU Link State 2015.</a></h5>
+                <h5>Following is adapted from a talk I gave at <a href="http://acm.cwru.edu/acm/conference/2015">CWRU Link State 2015</a>. Work in progress.</h5>
                 <p>I want to start by making a simple, uncontroversial statement. One that we should all agree on, but one that is often forgotten or ignored by professional software engineers:</p>
                 <blockquote>Software has a purpose.</blockquote>
                 <p>This is simple almost to the point of tautology. However, I and most of us who've done this sort of work have lost sight of that many times before. Let me explain what I mean by this.</p>
@@ -70,8 +71,6 @@
                 <p>As a software engineer, it is embarrassing to have something you are working on be wrong. Something about the programming mindset forces us to hone in on minutiae and obsess over <em>getting it right</em>. Our deploy system had tags you could apply to the equivalent of a pull request. A common and well understood tag was "Urgent." This meant that the change should be deployed ASAP, to the point of jumping in line before other requests or perhaps even being deployed on its own. The intended purpose for the tag was identifying requests that could stop us from actively losing money or stop something really bad from happening. If <em>essential</em> functionality was broken, this would be the appropriate tag to use. However, more often than note, I saw it being used for requests the really should have been tagged, "Embarrassing." A button being the wrong color, mis-formatted text, or a stray comment that was ultimately harmless. Did users really care about these issues? Probably not. Did these issues really require and urgent deploy? Probably not.</p>
                 <p>It's really easy to get sucked into your little bit of the puzzle and think that it has to be perfect. I've been guilty of this more than once. I think it is only natural for people who take pride in ownership to go beyond reason once in a while. We all need to remember, at the end of the day</p>
                 <blockquote>Software has a purpose</blockquote>
-            </div>
-            <div class="pure-u-1-5">
             </div>
         </div>
     </body>

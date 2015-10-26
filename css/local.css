@@ -66,7 +66,7 @@ blockquote {
     font-style: italic;
 }
 
-.pure-g [class*="pure-u"] {
+html, button, input, select, textarea, .pure-g [class*="pure-u"] {
     font-family: 'Open Sans', sans-serif;
 }
 
@@ -74,4 +74,8 @@ blockquote {
     -webkit-box-sizing: border-box;
     -moz-box-sizing: border-box;
     box-sizing: border-box;
+}
+
+.l-box {
+    padding: 1em;
 }
