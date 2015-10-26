@@ -23,6 +23,11 @@
 	color: #00EE00;
 }
 
+blockquote {
+    font-size: 140%;
+    font-style: italic;
+}
+
 .pure-g [class*="pure-u"] {
 	font-family: 'Open Sans', sans-serif;
 }
