@@ -27,6 +27,9 @@
                         'page name' : document.title,
                         'url' : window.location.pathname
                     });
+                    mixpanel.track_links("#contact a", "contacts clicked", {
+                        "referrer": document.referrer
+                    });
                 };
             </script>
     </head>
@@ -37,7 +40,7 @@
             <div class="pure-u-md-3-5 pure-u-1 l-box">
                 <div class="title">
                     <h1>Brian Stack<small> does things with computers.</small></h1>
-                    <div class="contact">
+                    <div id="contact" class="contact">
                         <a href="https://twitter.com/bstack01"><i class="fa fa-twitter"></i> @bstack01</a>
                         <a href="https://github.com/bis12"><i class="fa fa-github"></i> bis12</a>
                         <a href="brian_stack.pdf"><i class="fa fa-file-text-o"></i> resume</a>
