@@ -24,8 +24,11 @@ body {
     padding: 3px;
 }
 
-hr {
-    color: #FFF;
+.divide {
+    background-color: #BBB;
+    border-bottom: 1px solid #EEE;
+    height: 1px;
+    margin-bottom: 1em;
 }
 
 h1 {
