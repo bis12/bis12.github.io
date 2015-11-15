@@ -5,7 +5,7 @@ title: Fun with iMessage
 A friend of mine in a group chat was wondering how long people would go between talking or who talked the most often. I became curious and after some quick [stackoverflowing](http://apple.stackexchange.com/a/80025) I found that you already have all of the data you need locally if you use Messages on <span class="nowrap">OS X</span>. As of today on <span class="nowrap">El Capitan</span>, you can easily hop into the database with <span class="code">sqlite3 ~/Library/Messages/chat.db</span>.
 
 <div class="note">
-Note: This only goes back as far as you used Messages on OS X. If you want to get all of your messages from your phone, you can back it up to your computer and find the sqlite database there (My backup ends up in <span class="code">~/Library/Application\ Support/MobileSync/Backup/</span>). You'll find that there are just a mess of files with no names to help you; picking a string from your OS X copy of the Messages db and grepping for it in the backup seems to work.
+Note: This only goes back as far as you used Messages on OS X. To get all of your messages from your phone, back it up to your computer and find the sqlite database in <span class="code">~/Library/Application\ Support/MobileSync/Backup/</span> <a href="http://www.wired.com/2013/11/backup-sms-iphone/">(Thanks, Wired!)</a>. You'll find that there are just a mess of files with no names to help you; picking a string from your OS X copy of the Messages db and grepping for it in the backup seems to work.
 </div>
 
 The only tables I ended up caring about to answer this question were <span class="code">message</span> and <span class="code">handle</span>. I'll talk a bit more about how to generate this in a moment, but for now, we can look at [Figure 1](#imessage-fig1) and see what the final product is.
@@ -57,5 +57,7 @@ This got me curious, what does my history look like across _everyone_ I've talke
 </div>
 
 In [Figure 2](#imessage-fig2) I plot the messages per week from anyone who sent me over 150 messages in a week at least once since I've had the phone (arbitrary threshold to keep plot clean). With the exception of Person E and Person F, the top texter during any period of time was the person I was dating at that time. I've not revealed identities here to protect the innocent.
+
+There's still more to find with all of this, check back soon for more!
 
 <script type="text/javascript" src="{{ "/js/imessage.js" | prepend: site.baseurl }}"></script>
