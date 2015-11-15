@@ -2,7 +2,6 @@
 
 body {
     border-top: 1px solid #00468B;
-    padding-top: 2em;
 }
 
 .contact {
@@ -44,6 +43,7 @@ h1 {
     color: #00468B;
     margin-bottom: 0;
     margin-top: 0;
+    padding-top: 1em;
 }
 
 h2 {
@@ -66,12 +66,16 @@ h3 > small {
     color: #AAA;
 }
 
-li {
+.postbody li {
     list-style-type: none;
 }
 
-li::before {
+.postbody li::before {
     content: "| ";
+}
+
+.pure-menu-children {
+    border: 1px solid #AAA;
 }
 
 blockquote {
@@ -91,4 +95,65 @@ html, button, input, select, textarea, .pure-g [class*="pure-u"] {
 
 .l-box {
     padding: 1em;
+}
+
+@media screen and (max-width:767px) {
+    .title h1 {
+        text-align: center;
+        padding-top: 0.2em;
+    }
+
+    .title .pure-menu {
+        text-align: center;
+    }
+
+    .title .pure-menu li {
+        text-align: left;
+    }
+
+    .l-box {
+        padding-top: 0.2em;
+        padding-bottom: 0.2em;
+    }
+}
+
+/* pure-hidden-xs */
+@media screen and (max-width:567px) {
+    .pure-visible-sm{display:none}
+    .pure-visible-md{display:none}
+    .pure-visible-lg{display:none}
+    .pure-visible-xl{display:none}
+    .pure-hidden-xs{display:none}
+}
+/* pure-hidden-sm */
+@media screen and (min-width:568px) and (max-width:767px) {
+    .pure-visible-xs{display:none}
+    .pure-visible-md{display:none}
+    .pure-visible-lg{display:none}
+    .pure-visible-xl{display:none}
+    .pure-hidden-sm{display:none}
+}
+/* pure-hidden-md */
+@media screen and (min-width:768px) and (max-width:1023px) {
+    .pure-visible-xs{display:none}
+    .pure-visible-sm{display:none}
+    .pure-visible-lg{display:none}
+    .pure-visible-xl{display:none}
+    .pure-hidden-md{display:none}
+}
+/* pure-hidden-lg */
+@media screen and (min-width:1024px) and (max-width:1279px) {
+    .pure-visible-xs{display:none}
+    .pure-visible-sm{display:none}
+    .pure-visible-md{display:none}
+    .pure-visible-xl{display:none}
+    .pure-hidden-lg{display:none}
+}
+/* pure-hidden-xl */
+@media screen and (min-width:1280px) {
+    .pure-visible-xs{display:none}
+    .pure-visible-sm{display:none}
+    .pure-visible-md{display:none}
+    .pure-visible-lg{display:none}
+    .pure-hidden-xl{display:none}
 }
