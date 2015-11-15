@@ -35,6 +35,11 @@ body {
     height: 2em;
 }
 
+.perma {
+    float: right;
+    color: #AAA;
+}
+
 h1 {
     color: #00468B;
     margin-bottom: 0;
