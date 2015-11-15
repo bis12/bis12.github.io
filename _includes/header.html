@@ -1,0 +1,26 @@
+<div class="pure-g">
+    <div class="pure-u-lg-1-5 pure-u-1 pure-hidden-xs">
+    </div>
+    <div class="pure-u-lg-3-5 pure-u-1 l-box">
+        <div class="title">
+            <h1>Brian Stack<small class="pure-hidden-xs"> does things with computers.</small></h1>
+
+        <div class="pure-menu pure-menu-horizontal">
+            <ul class="pure-menu-list">
+                <li class="pure-menu-item pure-menu-has-children pure-menu-allow-hover">
+                    <a class="pure-menu-link"><i class="fa fa-bars"></i> Pages</a>
+                    <ul class="pure-menu-children">
+                        <li class="pure-menu-item"><a href="/" class="pure-menu-link">Home</a></li>
+                        {% for post in site.posts %}
+                            <li class="pure-menu-item"><a href="{{ post.url }}" class="pure-menu-link">{{ post.title }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </li>
+                <li class="pure-menu-item"><a class="pure-menu-link pure-hidden-xs" href="https://twitter.com/bstack01"><i class="fa fa-twitter"></i> @bstack01</a></li>
+                <li class="pure-menu-item"><a class="pure-menu-link pure-hidden-xs" href="https://github.com/bis12"><i class="fa fa-github"></i> bis12</a></li>
+                <li class="pure-menu-item"><a class="pure-menu-link pure-hidden-xs" href="/brian_stack.pdf"><i class="fa fa-map"></i> resume</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+<!-- Thanks to https://github.com/asottile for fixing something that was wrong with this in a PR that I ended up overwriting by accident. -->

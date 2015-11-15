@@ -1,8 +1,4 @@
 bstack's stuff
 --------------
-
-This is just a dumping ground for website stuff and associated things.
-
-The `render_resume` script in `bin/` can be used to generate a pdf of
-the resume, but for now I've found that printing it to pdf from chrome
-creates a better result.
+Open resume.html in Chrome and print it to pdf to create a new resume.
+It renders things much better than any of the headless browsers I've tried.
