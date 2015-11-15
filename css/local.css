@@ -124,6 +124,12 @@ html, button, input, select, textarea, .pure-g [class*="pure-u"] {
     padding: 1em;
 }
 
+.note {
+    font-size: 80%;
+    padding-left: 0.5em;
+    border-left: 4px solid #AAA;
+}
+
 @media screen and (max-width:767px) {
     .title h1 {
         text-align: center;

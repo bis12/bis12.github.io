@@ -1,5 +1,7 @@
 $(document).ready(function() {
-    var chart = c3.generate({
+
+    // Plot of people in chat room
+    c3.generate({
         bindto: '#imessage-fig1>div',
         data: {
             url: '/data/talkers.json',
@@ -12,7 +14,6 @@ $(document).ready(function() {
             },
             y: {
                 label: 'Messages per day',
-                max: 60
             }
         },
         grid: {
@@ -22,6 +23,24 @@ $(document).ready(function() {
                     {value: 11, text: 'Talking about food?'},
                     {value: 15, text: 'Someone gets a new cable box?'}
                 ]
+            }
+        }
+    });
+
+    // Plot of everyone I've talked to
+    c3.generate({
+        bindto: '#imessage-fig2>div',
+        data: {
+            url: '/data/all_talkers.json',
+            type: 'spline',
+            mimeType: 'json'
+        },
+        axis: {
+            x: {
+                label: 'Weeks since Brian had iPhone'
+            },
+            y: {
+                label: 'Messages per week',
             }
         }
     });
