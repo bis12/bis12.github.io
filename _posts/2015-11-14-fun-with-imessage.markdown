@@ -58,6 +58,15 @@ This got me curious, what does my history look like across _everyone_ I've talke
 
 In [Figure 2](#imessage-fig2) I plot the messages per week from anyone who sent me over 150 messages in a week at least once since I've had the phone (arbitrary threshold to keep plot clean). With the exception of Person E and Person F, the top texter during any period of time was the person I was dating at that time. I've not revealed identities here to protect the innocent.
 
+Over the course of a normal week, when are people texting me? We can pretty much steal Github's punchcard visualization and reproduce it [Figure 3](#imessage-fig3) with texts instead of commits.
+
+<div id="imessage-fig3" class="figure">
+    <div></div>
+    <span class="caption pure-hidden-xs">Figure 3. Times when texts are happening.</span>
+    <span class="caption pure-visible-xs">Figure 3</span>
+</div>
+
 There's still more to find with all of this, check back soon for more!
 
 <script type="text/javascript" src="{{ "/js/imessage.js" | prepend: site.baseurl }}"></script>
+<link rel="stylesheet" href="{{ "/css/imessage.css" | prepend: site.baseurl }}">
