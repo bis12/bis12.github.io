@@ -1,0 +1,14 @@
+.axis {
+    font-size: 10px;
+}
+
+.axis path,
+.axis line {
+    fill: none;
+    stroke: #AAA;
+    shape-rendering: crispEdges;
+}
+
+.hover:hover {
+    fill: #AAA;
+}
