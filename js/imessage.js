@@ -1,6 +1,6 @@
 var punchcard = function(args) {
     var el = d3.select(args.bindto);
-    var margin = {top: 20, right: 10, bottom: 20, left: 50};
+    var margin = {top: 30, right: 30, bottom: 20, left: 50};
     var width = el[0][0].offsetWidth - margin.left - margin.right;
     var height = width * (1/1.6) - margin.top - margin.bottom;
 
@@ -12,11 +12,15 @@ var punchcard = function(args) {
                 .append('g')
                 .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-    var x = d3.scale.linear().domain([0, 25]).range([0, width]);
+    var x = d3.scale.linear().domain([0, 24]).range([0, width]);
     var y = d3.scale.linear().domain([0, 6]).range([0, height]);
 
+    xAxis = d3.svg.axis().ticks(6).scale(x).orient('top').tickFormat( function(d) { return d + ':00' });
     yAxis = d3.svg.axis().ticks(7).scale(y).orient('left').tickFormat( function(d, i) { return days[i]; });
-    svg.append('g').attr("class", "x axis").call(yAxis);
+
+    svg.append('g').attr("class", "x axis").call(xAxis).selectAll('text').attr("dy", "-.6em");
+    svg.append('g').attr("class", "y axis").call(yAxis);
+
 
     for (var i in days) {
         svg.append('g')
@@ -40,9 +44,10 @@ var punchcard = function(args) {
            .append('circle')
            .attr('fill', '#333')
            .attr('class','hover')
-           .attr('cy', function(d,i,j) { return y(j); })
-           .attr('cx', function(d,i,j) { return x(i + 1); })
-           .attr('r', function(d,i,j) { return +d * 0.02; });
+           .attr('title', function(d,i,j) { return d })
+           .attr('cy', function(d,i,j) { return y(j) })
+           .attr('cx', function(d,i,j) { return x(i + 1) })
+           .attr('r', function(d,i,j) { return +d * 0.015 });
     });
 }
 
