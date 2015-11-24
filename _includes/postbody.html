@@ -8,7 +8,7 @@
             {{ include.post.date | date: "%b %-d, %Y" }}
             <a class="perma" href="{{ include.post.url }}">permalink</a>
         </small>
-        <h2>{{ include.post.title }}</h2>
+        <h2>{{ include.post.title }} <small>{{ include.post.subtitle }}</small></h2>
         {{ include.content }}
     </div>
 </div>
