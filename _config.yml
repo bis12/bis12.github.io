@@ -2,7 +2,7 @@ title: Brian Stack
 description: >
   Brian does things and writes about some of them.
 baseurl: ""
-url: "https://bis12.github.io"
+url: "https://imbstack.github.io"
 
 # Build settings
 markdown: kramdown
