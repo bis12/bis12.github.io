@@ -65,8 +65,5 @@ Over the course of a normal week, when are people texting me? We can pretty much
     <span class="caption pure-hidden-xs">Figure 3. Times when texts are happening.</span>
     <span class="caption pure-visible-xs">Figure 3</span>
 </div>
-
-There's still more to find with all of this, check back soon for more!
-
 <script type="text/javascript" src="{{ "/js/imessage.js" | prepend: site.baseurl }}"></script>
 <link rel="stylesheet" href="{{ "/css/imessage.css" | prepend: site.baseurl }}">

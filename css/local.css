@@ -4,6 +4,10 @@ body {
     border-top: 2px solid #00468B;
 }
 
+img {
+  width: 100%;
+}
+
 .contact {
     font-size: 110%;
     margin-top: 0;
@@ -45,6 +49,7 @@ body {
 
 .figure {
     border: 1px solid #EFEFEF;
+    width: 100%;
 }
 
 .figure > div {
