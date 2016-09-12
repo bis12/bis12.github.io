@@ -37,7 +37,7 @@ More thorough (and more correct) documentation of what task statuses are can be 
 
 But what you've really been waiting for is to know how to use this, so here's a simple set of routes that will do some of the things you might want.
 
-{% highlight json %}
+```json
 {
   "routes": [
     "notify.email.<you@you.com>.on-any",
@@ -46,7 +46,7 @@ But what you've really been waiting for is to know how to use this, so here's a 
     "notify.pulse.<a-pulse-routing-key>.on-exception"
   ]
 }
-{% endhighlight %}
+```
 
 ### Scopes
 
@@ -65,8 +65,8 @@ queue:route:notify.irc-user.*
 Finally, an example to tie it all together. This is the as-of-this-writing ``.taskcluster.yml`` of the aforementioned taskcluster-github project.
 
 
-{% highlight yaml %}
-
+{% raw %}
+```yaml
 version: 0
 metadata:
   name: "TaskCluster GitHub Tests"
@@ -100,9 +100,10 @@ tasks:
       description: "All non-integration tests"
       owner: "{{ event.head.user.email }}"
       source: "{{ event.head.repo.url }}"
+```
+{% endraw %}
 
-{% endhighlight %}
 
 ### Next Steps
 
-We're working now to enable this to be triggered not only on tasks but also task-groups. Work is ongoing with that project. If you have any questions or suggestions, say hi to me in the ``#taskcluster`` channel on Mozilla irc.
+We're working now to enable this to be triggered not only on tasks but also task-groups. Work is ongoing with that project. If you have any questions or suggestions, say hi in the ``#taskcluster`` channel on Mozilla irc.
