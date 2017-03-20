@@ -5,21 +5,22 @@
         <div class="title">
             <h1>Brian Stack<small class="pure-hidden-xs"> does things with computers.</small></h1>
 
-        <div class="pure-menu pure-menu-horizontal">
-            <ul class="pure-menu-list">
-                <li class="pure-menu-item pure-menu-has-children pure-menu-allow-hover">
-                    <a class="pure-menu-link"><i class="fa fa-bars"></i> Pages</a>
-                    <ul class="pure-menu-children">
-                        <li class="pure-menu-item"><a href="/" class="pure-menu-link">Home</a></li>
-                        {% for post in site.posts %}
-                            <li class="pure-menu-item"><a href="{{ post.url }}" class="pure-menu-link">{{ post.title }}</a></li>
-                        {% endfor %}
-                    </ul>
-                </li>
-                <li class="pure-menu-item"><a class="pure-menu-link pure-hidden-xs" href="https://twitter.com/imbstack"><i class="fa fa-twitter"></i> @imbstack</a></li>
-                <li class="pure-menu-item"><a class="pure-menu-link pure-hidden-xs" href="https://github.com/imbstack"><i class="fa fa-github"></i> imbstack</a></li>
-                <li class="pure-menu-item"><a class="pure-menu-link pure-hidden-xs" href="http://docs.taskcluster.net/"><i class="fa fa-firefox"></i> TaskCluster</a></li>
-            </ul>
+          <div class="pure-menu pure-menu-horizontal">
+              <ul class="pure-menu-list">
+                  <li class="pure-menu-item pure-menu-has-children pure-menu-allow-hover">
+                      <a class="pure-menu-link"><i class="fa fa-bars"></i> Pages</a>
+                      <ul class="pure-menu-children">
+                          <li class="pure-menu-item"><a href="/" class="pure-menu-link">Home</a></li>
+                          {% for post in site.posts %}
+                              <li class="pure-menu-item"><a href="{{ post.url }}" class="pure-menu-link">{{ post.title }}</a></li>
+                          {% endfor %}
+                      </ul>
+                  </li>
+                  <li class="pure-menu-item"><a class="pure-menu-link pure-hidden-xs" href="https://twitter.com/imbstack"><i class="fa fa-twitter"></i> @imbstack</a></li>
+                  <li class="pure-menu-item"><a class="pure-menu-link pure-hidden-xs" href="https://github.com/imbstack"><i class="fa fa-github"></i> imbstack</a></li>
+                  <li class="pure-menu-item"><a class="pure-menu-link pure-hidden-xs" href="http://docs.taskcluster.net/"><i class="fa fa-firefox"></i> Taskcluster</a></li>
+              </ul>
+          </div>
         </div>
     </div>
 </div>

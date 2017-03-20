@@ -13,7 +13,7 @@ There are (as of today) three types of notifications and four types of filters p
 
 __IRC:__ This is only enabled on ``irc.mozilla.org`` for now. You can specify either a user or a channel to send a notification to upon task completion. You'll receive a message like the following: ``Task "Taskcluster Notify Test" complete with status 'completed'. Inspect: https://tools.taskcluster.net/task-inspector/#f0rU3kS7RmG3xSWwbq6Ndw``.
 
-__Email:__ We can you both nicely formatted or plain text emails depending on which email client you want to use. You can send to any email address, so long as you have the correct scopes (we'll discuss scopes later).
+__Email:__ We can send you both nicely formatted or plain text emails depending on which email client you want to use. You can send to any email address, so long as you have the correct scopes (we'll discuss scopes later).
 
 <div id="notify-fig1" class="figure">
     <img src="{{ "/img/notify-email-example.png" | prepend: site.baseurl }}"/>

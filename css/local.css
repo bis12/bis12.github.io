@@ -1,7 +1,5 @@
-@import url(https://fonts.googleapis.com/css?family=Open+Sans:300);
-
 body {
-    border-top: 2px solid #00468B;
+    border-top: 2px solid #2CC48A;
 }
 
 img {
@@ -21,10 +19,19 @@ img {
     white-space: nowrap;
 }
 
-.code {
-    background-color: #E6E6E6;
+pre {
+    background-color: #F6F6F6;
     font-family: monospace;
-    padding: 3px;
+    padding: 8px;
+    border-top: 1px solid #2CC48A;
+    border-bottom: 1px solid #2CC48A;
+}
+
+p > code {
+    background-color: #F6F6F6;
+    padding-left: 3px;
+    padding-right: 3px;
+    color: #333;
 }
 
 .divide {
@@ -73,15 +80,33 @@ img {
 }
 
 h1 {
-    color: #00468B;
+    background: -webkit-linear-gradient(top, #00468B, #2CC48A);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background: -moz-linear-gradient(top, #00468B, #2CC48A);
+    -moz-background-clip: text;
+    -moz-text-fill-color: transparent;
+    background: linear-gradient(top, #00468B, #2CC48A);
+    background-clip: text;
+    text-fill-color: transparent;
     margin-bottom: 0;
     margin-top: 0;
     padding-top: 1em;
+    font-weight: 300;
 }
 
 h2 {
-    color: #00468B;
+    background: -webkit-linear-gradient(top, #00468B, #2CC48A);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background: -moz-linear-gradient(top, #00468B, #2CC48A);
+    -moz-background-clip: text;
+    -moz-text-fill-color: transparent;
+    background: linear-gradient(top, #00468B, #2CC48A);
+    background-clip: text;
+    text-fill-color: transparent;
     margin-top: 0.1em;
+    font-weight: 300;
 }
 
 h3 {
@@ -98,12 +123,22 @@ h3 > small {
     color: #AAA;
 }
 
+.postbody p {
+    line-height: 140%;
+}
+
+.postbody ul {
+    border-left: 2px solid #2CC48A;
+    padding-left: 8px;
+}
+
 .postbody li {
     list-style-type: none;
 }
 
 .postbody li::before {
-    content: "| ";
+    color: #2CC48A;
+    content: "▻ ";
 }
 
 .pure-menu-children {
@@ -113,10 +148,28 @@ h3 > small {
 blockquote {
     font-size: 140%;
     font-style: italic;
+    background: -webkit-linear-gradient(top, #00468B, #2CC48A);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background: -moz-linear-gradient(top, #00468B, #2CC48A);
+    -moz-background-clip: text;
+    -moz-text-fill-color: transparent;
+    background: linear-gradient(top, #00468B, #2CC48A);
+    background-clip: text;
+    text-fill-color: transparent;
 }
 
 html, button, input, select, textarea, .pure-g [class*="pure-u"] {
-    font-family: 'Open Sans', sans-serif;
+    font-weight: 300;
+    font-family: -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                Roboto,
+                Oxygen-Sans,
+                Ubuntu,
+                Cantarell,
+                "Helvetica Neue",
+                sans-serif;
 }
 
 .pure-g > div {
@@ -138,7 +191,6 @@ html, button, input, select, textarea, .pure-g [class*="pure-u"] {
 @media screen and (max-width:767px) {
     .title h1 {
         text-align: center;
-        padding-top: 0.2em;
     }
 
     .title .pure-menu {
