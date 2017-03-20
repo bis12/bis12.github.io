@@ -2,7 +2,11 @@ title: Brian Stack
 description: >
   Brian does things and writes about some of them.
 baseurl: ""
-url: "https://imbstack.github.io"
+url: "http://imbstack.com"
+author: bstack
 
 # Build settings
 markdown: kramdown
+
+gems:
+  - jekyll-feed
