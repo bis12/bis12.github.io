@@ -211,6 +211,15 @@ html, button, input, select, textarea, .pure-g [class*="pure-u"] {
         padding-top: 0.2em;
         padding-bottom: 0.2em;
     }
+
+    .postbody p {
+        text-align: left;
+        font-size: 1em;
+    }
+
+    .postbody ul {
+        font-size: 1em;
+    }
 }
 
 .visible-tiny {
