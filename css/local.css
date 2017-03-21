@@ -1,5 +1,9 @@
 body {
     border-top: 2px solid #2CC48A;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "liga","kern";
 }
 
 img {
@@ -124,7 +128,7 @@ h3 > small {
 }
 
 .postbody p {
-    line-height: 140%;
+    text-align: justify;
 }
 
 .postbody ul {
