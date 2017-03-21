@@ -129,11 +129,14 @@ h3 > small {
 
 .postbody p {
     text-align: justify;
+    color: #333;
+    font-size: 1.1em;
 }
 
 .postbody ul {
     border-left: 2px solid #2CC48A;
     padding-left: 8px;
+    font-size: 1.1em;
 }
 
 .postbody li {
@@ -164,7 +167,6 @@ blockquote {
 }
 
 html, button, input, select, textarea, .pure-g [class*="pure-u"] {
-    font-weight: 300;
     font-family: -apple-system,
                 BlinkMacSystemFont,
                 "Segoe UI",
