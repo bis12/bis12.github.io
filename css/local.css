@@ -136,6 +136,7 @@ h3 > small {
 .postbody ul {
     border-left: 2px solid #2CC48A;
     padding-left: 8px;
+    color: #333;
     font-size: 1.1em;
 }
 
