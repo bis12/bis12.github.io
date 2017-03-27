@@ -18,3 +18,4 @@ exclude:
   - Gemfile.lock
   - README.md
   - push.sh
+  - extra
