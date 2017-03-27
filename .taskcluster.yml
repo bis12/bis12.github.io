@@ -13,6 +13,8 @@ tasks:
           - master
         events:
           - push
+    scopes:
+      - secrets:get:repo:github.com/imbstack/imbstack.github.io
     payload:
       features:
         taskclusterProxy: true
