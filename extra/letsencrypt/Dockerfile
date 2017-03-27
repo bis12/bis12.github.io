@@ -12,3 +12,5 @@ ENV site /site
 RUN mkdir $site
 WORKDIR $site
 ADD script.sh $site
+
+RUN apt-get install -y curl
