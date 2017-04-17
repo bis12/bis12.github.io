@@ -5,16 +5,27 @@
 <meta name="description" content="{{ site.description }}">
 {% feed_meta %}
 
-<link rel="stylesheet" href="{{ "/css/pure-min.css" | prepend: site.baseurl }}">
-<link rel="stylesheet" href="{{ "/css/pure-grids-responsive-min.css" | prepend: site.baseurl }}">
-<link rel="stylesheet" href="{{ "/css/fa/css/font-awesome.min.css" | prepend: site.baseurl }}">
-<link rel="stylesheet" href="{{ "/css/c3.css" | prepend: site.baseurl }}">
-<link rel="stylesheet" href="{{ "/css/pygments.css" | prepend: site.baseurl }}">
-<link rel="stylesheet" href="{{ "/css/local.css" | prepend: site.baseurl }}">
+<link rel="stylesheet" href="/css/pure-min.css">
+<link rel="stylesheet" href="/css/pure-grids-responsive-min.css">
+<link rel="stylesheet" href="/css/fa/css/font-awesome.min.css">
+<link rel="stylesheet" href="/css/c3.css">
+<link rel="stylesheet" href="/css/pygments.css">
+<link rel="stylesheet" href="/css/local.css">
+
 <link rel="canonical" href="{{ page.url | replace:'index.html','' | prepend: site.baseurl | prepend: site.url }}">
 
 <link rel="icon" href="/favicon.ico">
 
-<script type="text/javascript" src="{{ "/js/zepto.min.js" | prepend: site.baseurl }}"></script>
-<script type="text/javascript" src="{{ "/js/d3.min.js" | prepend: site.baseurl }}"></script>
-<script type="text/javascript" src="{{ "/js/c3.min.js" | prepend: site.baseurl }}"></script>
+{% if page.custom_css %}
+  {% if page.custom_css == 'all' %}
+  {% assign pages = site.posts %}
+  {% else %}
+  {% assign pages = page %}
+  {% endif %}
+
+  {% for page in pages %}
+    {% for stylesheet in page.custom_css %}
+    <link rel="stylesheet" href="/css/{{ stylesheet }}.css" type="text/css">
+    {% endfor %}
+  {% endfor %}
+{% endif %}

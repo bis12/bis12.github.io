@@ -1,6 +1,10 @@
 ---
 layout: post
 title: Fun with iMessage
+custom_css:
+ - imessage
+custom_js:
+ - imessage
 ---
 A friend of mine in a group chat was wondering how long people would go between talking or who talked the most often. I became curious and after some quick [stackoverflowing](http://apple.stackexchange.com/a/80025) I found that you already have all of the data you need locally if you use Messages on <span class="nowrap">OS X</span>. As of today on <span class="nowrap">El Capitan</span>, you can easily hop into the database with <span class="code">sqlite3 ~/Library/Messages/chat.db</span>.
 
@@ -65,5 +69,3 @@ Over the course of a normal week, when are people texting me? We can pretty much
     <span class="caption pure-hidden-xs">Figure 3. Times when texts are happening.</span>
     <span class="caption pure-visible-xs">Figure 3</span>
 </div>
-<script type="text/javascript" src="{{ "/js/imessage.js" | prepend: site.baseurl }}"></script>
-<link rel="stylesheet" href="{{ "/css/imessage.css" | prepend: site.baseurl }}">

@@ -3,7 +3,7 @@ layout: post
 title:  Attacking the Monolith
 ---
 
-##### Following is adapted from a talk I gave at [CWRU Link State 2015]("http://acm.cwru.edu/acm/conference/2015").
+##### Following is adapted from a talk I gave at [CWRU Link State 2015](http://acm.cwru.edu/acm/conference/2015).
 
 I want to start by making a simple, uncontroversial statement. One that we should all agree on, but one that is often forgotten or ignored by professional software engineers:
 
