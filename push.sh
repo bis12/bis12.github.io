@@ -3,7 +3,7 @@ export AWS_ACCESS_KEY_ID=$(curl ${secret_url} | python -c 'import json, sys; a =
 export AWS_SECRET_ACCESS_KEY=$(curl ${secret_url} | python -c 'import json, sys; a = json.load(sys.stdin); print a["secret"]["AWS_SECRET_ACCESS_KEY"]')
 
 echo "Uploading normal files"
-aws s3 sync --dryrun --exclude "assets/*"  --exclude "data/*" --exclude "img/*" --delete _site/ s3://bstack-tc-docs
+aws s3 sync --exclude "assets/*"  --exclude "data/*" --exclude "img/*" --delete _site/ s3://imbstack.com
 
 # Let's raise the max-age and/or use immutable over time if this is working correctly
 echo "Uploading assets files"
