@@ -20,6 +20,8 @@ tasks:
         taskclusterProxy: true
       maxRunTime: 3600
       image: 'imbstack/jekyll-s3'
+      env:
+        JEKYLL_ENV: 'production'
       command:
         - '/bin/bash'
         - '--login'

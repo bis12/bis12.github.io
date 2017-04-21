@@ -1,10 +1,6 @@
 ---
 layout: post
 title: Fun with iMessage
-custom_css:
- - imessage
-custom_js:
- - imessage
 ---
 A friend of mine in a group chat was wondering how long people would go between talking or who talked the most often. I became curious and after some quick [stackoverflowing](http://apple.stackexchange.com/a/80025) I found that you already have all of the data you need locally if you use Messages on <span class="nowrap">OS X</span>. As of today on <span class="nowrap">El Capitan</span>, you can easily hop into the database with <span class="code">sqlite3 ~/Library/Messages/chat.db</span>.
 

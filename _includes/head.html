@@ -5,27 +5,8 @@
 <meta name="description" content="{{ site.description }}">
 {% feed_meta %}
 
-<link rel="stylesheet" href="/css/pure-min.css">
-<link rel="stylesheet" href="/css/pure-grids-responsive-min.css">
-<link rel="stylesheet" href="/css/fa/css/font-awesome.min.css">
-<link rel="stylesheet" href="/css/c3.css">
-<link rel="stylesheet" href="/css/pygments.css">
-<link rel="stylesheet" href="/css/local.css">
+{% css main %}
 
 <link rel="canonical" href="{{ page.url | replace:'index.html','' | prepend: site.baseurl | prepend: site.url }}">
 
 <link rel="icon" href="/favicon.ico">
-
-{% if page.custom_css %}
-  {% if page.custom_css == 'all' %}
-  {% assign pages = site.posts %}
-  {% else %}
-  {% assign pages = page %}
-  {% endif %}
-
-  {% for page in pages %}
-    {% for stylesheet in page.custom_css %}
-    <link rel="stylesheet" href="/css/{{ stylesheet }}.css" type="text/css">
-    {% endfor %}
-  {% endfor %}
-{% endif %}
