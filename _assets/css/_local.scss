@@ -149,6 +149,18 @@ h3 > small {
     content: "\25BB  ";
 }
 
+.icon {
+  fill: currentColor;
+  stroke: none;
+  height: 1em;
+  width: 1em;
+  vertical-align: middle;
+}
+
+.title-box {
+    padding-left: 1em;
+}
+
 .pure-menu-children {
     border: 1px solid #AAA;
 }

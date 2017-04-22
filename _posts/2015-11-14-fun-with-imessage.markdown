@@ -46,7 +46,7 @@ ORDER BY date;
 
 That '2001-01-01 00:00:00' is necessary because iMessage starts counting time from 2001 for some reason I'll never understand. What you want to do at this point is up to you, but I output it as a csv and go to work from there in Python. One note to keep in mind, messages will occasionally have newlines in them, so you may want to define a -newline of your own in your csv output. This will make it harder to read normally, but fixes that issue. I'm almost certain there's a better way of solving it, and if you know one, let me know!
 
-From there it's just some simple scripting to make a histogram of posts per user and plot it however you like. I have a manual phone-number <i class="fa fa-long-arrow-right"></i> human-name dictionary in my code. I'm not sure if there's a way to automate this with wherever Contacts stores its data, but perhaps that's a post for another day.
+From there it's just some simple scripting to make a histogram of posts per user and plot it however you like. I have a manual phone-number <svg class="icon"><use xlink:href="#long-arrow-right-icon"></use></svg> human-name dictionary in my code. I'm not sure if there's a way to automate this with wherever Contacts stores its data, but perhaps that's a post for another day.
 
 This got me curious, what does my history look like across _everyone_ I've talked to? Well, here you go:
 
