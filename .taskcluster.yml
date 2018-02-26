@@ -33,4 +33,42 @@ tasks:
       description: Run Jekyll and upload Site
       owner: '{{ event.head.user.email }}'
       source: '{{ event.head.repo.url }}'
+  - provisionerId: '{{ taskcluster.docker.provisionerId }}'
+    workerType: '{{ taskcluster.docker.workerType }}'
+    extra:
+      github:
+        events:
+          - tag
+    payload:
+      maxRunTime: 3600
+      image: 'imbstack/jekyll-s3'
+      command:
+        - '/bin/bash'
+        - '--login'
+        - '-c'
+        - echo hi
+    metadata:
+      name: testing
+      description: 123
+      owner: '{{ event.head.user.email }}'
+      source: '{{ event.head.repo.url }}'
+  - provisionerId: '{{ taskcluster.docker.provisionerId }}'
+    workerType: '{{ taskcluster.docker.workerType }}'
+    extra:
+      github:
+        events:
+          - push
+    payload:
+      maxRunTime: 3600
+      image: 'imbstack/jekyll-s3'
+      command:
+        - '/bin/bash'
+        - '--login'
+        - '-c'
+        - echo bye
+    metadata:
+      name: testing
+      description: 123
+      owner: '{{ event.head.user.email }}'
+      source: '{{ event.head.repo.url }}'
 
