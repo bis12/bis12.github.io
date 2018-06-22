@@ -1,5 +1,5 @@
-title: Brian Stack
-description: Brian Stack does things with computers.
+title: imbstack
+description: imbstack does things with computers.
 baseurl: ""
 url: "https://imbstack.com"
 author: bstack
@@ -19,4 +19,3 @@ exclude:
   - README.md
   - push.sh
   - extra
-

@@ -1,44 +1,8 @@
-<div class="pure-g">
-    <div class="pure-u-lg-1-5 pure-u-md-1-8 pure-hidden-xs">
+<header class="page-header">
+  <h1><a href="/">imbstack</a></h1>
+    <div class="link-box">
+      <a href="https://mozillians.org/en-US/u/bstack/">mozillians</a>
+      <a href="https://github.com/imbstack">github</a>
+      <a href="https://twitter.com/imbstack">twitter</a>
     </div>
-    <div class="pure-u-lg-3-5 pure-u-md-3-4 pure-u-1 title-box">
-        <div class="title">
-            <h1>Brian Stack<small class="pure-hidden-xs"> does things with computers.</small></h1>
-
-          <div class="pure-menu pure-menu-horizontal">
-              <ul class="pure-menu-list">
-                  <li class="pure-menu-item pure-menu-has-children pure-menu-allow-hover">
-                      <a class="pure-menu-link"><svg class="icon"><use xlink:href="#bars-icon"></use></svg> Pages</a>
-                      <ul class="pure-menu-children">
-                          <li class="pure-menu-item"><a href="/" class="pure-menu-link">Home</a></li>
-                          {% for post in site.posts %}
-                              <li class="pure-menu-item"><a href="{{ post.url }}" class="pure-menu-link">{{ post.title }}</a></li>
-                          {% endfor %}
-                      </ul>
-                  </li>
-                  <li class="pure-menu-item"><a class="pure-menu-link pure-hidden-xs" href="https://twitter.com/imbstack"><svg class="icon"><use xlink:href="#twitter-icon"></use></svg> @imbstack</a></li>
-                  <li class="pure-menu-item"><a class="pure-menu-link pure-hidden-xs" href="https://github.com/imbstack"><svg class="icon"><use xlink:href="#github-icon"></use></svg> imbstack</a></li>
-                  <li class="pure-menu-item"><a class="pure-menu-link pure-hidden-xs" href="http://docs.taskcluster.net/"><svg class="icon"><use xlink:href="#firefox-icon"></use></svg> Taskcluster</a></li>
-              </ul>
-          </div>
-        </div>
-    </div>
-</div>
-<!-- Thanks to https://github.com/asottile for fixing something that was wrong with this in a PR that I ended up overwriting by accident. -->
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="display: none;">
-  <symbol id="bars-icon" viewBox="0 0 1792 1792">
-    <path d="M1664 1344v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45zm0-512v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45zm0-512v128q0 26-19 45t-45 19h-1408q-26 0-45-19t-19-45v-128q0-26 19-45t45-19h1408q26 0 45 19t19 45z"/>
-  </symbol>
-  <symbol id="firefox-icon" viewBox="0 0 1792 1792">
-    <path d="M903 1792q-283 0-504.5-150.5t-329.5-398.5q-58-131-67-301t26-332.5 111-312 179-242.5l-11 281q11-14 68-15.5t70 15.5q42-81 160.5-138t234.5-59q-54 45-119.5 148.5t-58.5 163.5q25 8 62.5 13.5t63 7.5 68 4 50.5 3q15 5 9.5 45.5t-30.5 75.5q-5 7-16.5 18.5t-56.5 35.5-101 34l15 189-139-67q-18 43-7.5 81.5t36 66.5 65.5 41.5 81 6.5q51-9 98-34.5t83.5-45 73.5-17.5q61 4 89.5 33t19.5 65q-1 2-2.5 5.5t-8.5 12.5-18 15.5-31.5 10.5-46.5 1q-60 95-144.5 135.5t-209.5 29.5q74 61 162.5 82.5t168.5 6 154.5-52 128-87.5 80.5-104q43-91 39-192.5t-37.5-188.5-78.5-125q87 38 137 79.5t77 112.5q15-170-57.5-343t-209.5-284q265 77 412 279.5t151 517.5q2 127-40.5 255t-123.5 238-189 196-247.5 135.5-288.5 49.5z"/>
-  </symbol>
-  <symbol id="github-icon" viewBox="0 0 1792 1792">
-    <path d="M1664 896q0 251-146.5 451.5t-378.5 277.5q-27 5-39.5-7t-12.5-30v-211q0-97-52-142 57-6 102.5-18t94-39 81-66.5 53-105 20.5-150.5q0-121-79-206 37-91-8-204-28-9-81 11t-92 44l-38 24q-93-26-192-26t-192 26q-16-11-42.5-27t-83.5-38.5-86-13.5q-44 113-7 204-79 85-79 206 0 85 20.5 150t52.5 105 80.5 67 94 39 102.5 18q-40 36-49 103-21 10-45 15t-57 5-65.5-21.5-55.5-62.5q-19-32-48.5-52t-49.5-24l-20-3q-21 0-29 4.5t-5 11.5 9 14 13 12l7 5q22 10 43.5 38t31.5 51l10 23q13 38 44 61.5t67 30 69.5 7 55.5-3.5l23-4q0 38 .5 89t.5 54q0 18-13 30t-40 7q-232-77-378.5-277.5t-146.5-451.5q0-209 103-385.5t279.5-279.5 385.5-103 385.5 103 279.5 279.5 103 385.5z"/>
-  </symbol>
-  <symbol id="long-arrow-right-icon" viewBox="0 0 1792 1792">
-    <path d="M1728 893q0 14-10 24l-384 354q-16 14-35 6-19-9-19-29v-224h-1248q-14 0-23-9t-9-23v-192q0-14 9-23t23-9h1248v-224q0-21 19-29t35 5l384 350q10 10 10 23z"/>
-  </symbol>
-  <symbol id="twitter-icon" viewBox="0 0 1792 1792">
-<path d="M1684 408q-67 98-162 167 1 14 1 42 0 130-38 259.5t-115.5 248.5-184.5 210.5-258 146-323 54.5q-271 0-496-145 35 4 78 4 225 0 401-138-105-2-188-64.5t-114-159.5q33 5 61 5 43 0 85-11-112-23-185.5-111.5t-73.5-205.5v-4q68 38 146 41-66-44-105-115t-39-154q0-88 44-163 121 149 294.5 238.5t371.5 99.5q-8-38-8-74 0-134 94.5-228.5t228.5-94.5q140 0 236 102 109-21 205-78-37 115-142 178 93-10 186-50z"/>
-  </symbol>
-</svg>
+</header>
