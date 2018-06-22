@@ -4,8 +4,13 @@
         {% include head.html %}
     </head>
     <body>
+      <div class="page-container">
         {% include header.html %}
-        {{ content }}
-        {% js main %}
+        {% include nav.html %}
+        <main class="page-content">
+          {{ content }}
+        </main>
+      </div>
+      {% js main %}
     </body>
 </html>
