@@ -19,7 +19,7 @@ tasks:
       features:
         taskclusterProxy: true
       maxRunTime: 3600
-      image: 'imbstack/jekyll-s3'
+      image: 'imbstack/jekyll-s3:b89d442651de'
       env:
         JEKYLL_ENV: production
       command:
