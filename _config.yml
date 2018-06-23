@@ -7,7 +7,7 @@ author: bstack
 # Build settings
 markdown: kramdown
 
-gems:
+plugins:
   - jekyll-feed
   - jekyll-assets
 
