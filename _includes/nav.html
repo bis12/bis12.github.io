@@ -1,5 +1,8 @@
 <nav class="page-nav">
-  <hr class="left"/><h5>Read More</h5><hr class="right" />
+  <input type="checkbox" id="show-nav-controller"/>
+  <hr class="left"/>
+  <label for="show-nav-controller"><h5>Read More</h5></label>
+  <hr class="right" />
   <ul>
     {% for post in site.posts %}
       <li>

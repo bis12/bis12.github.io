@@ -118,6 +118,7 @@ div.highlighter-rouge {
 }
 
 .page-header {
+  padding-top: 0.3em;
   grid-area: header;
   display: flex;
 }
@@ -128,21 +129,27 @@ div.highlighter-rouge {
   text-align: center;
 }
 
+#show-nav-controller {
+  display: none;
+}
+
 .page-nav h5 {
+  cursor: pointer;
   display: inline;
   margin: 0;
+  user-select: none;
+  -moz-user-select: none;
 }
 
 .page-nav h5:after {
   content: "\25BC";
 }
 
-.page-nav:hover ul {
-  background-color: #fff;
-  z-index: 10;
-  display: block;
+#show-nav-controller:checked ~ label h5:after {
+  content: "\25B2";
 }
-.page-nav ul:hover {
+
+#show-nav-controller:checked ~ ul {
   background-color: #fff;
   z-index: 10;
   display: block;
