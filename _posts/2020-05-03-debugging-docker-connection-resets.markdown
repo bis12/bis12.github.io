@@ -3,6 +3,8 @@ layout: post
 title: Debugging Docker Connection Reset by Peer
 ---
 
+##### co-written with Dustin Mitchell and cross-posted [here](http://code.v.igoro.us/posts/2020/05/debugging-docker-connection-reset-by-peer.html)
+
 ### Symptoms
 
 At the end of January this year the Taskcluster team was alerted to [networking issues in a user's tasks](https://github.com/web-platform-tests/wpt/issues/21529). The first
