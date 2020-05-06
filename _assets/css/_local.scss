@@ -1,15 +1,6 @@
-@font-face {
-    font-family: 'Gaudy Bookletter';
-    src: url(asset_path('goudy_bookletter_1911-webfont.eot'));
-    src: url(asset_path('goudy_bookletter_1911-webfont.eot?#iefix')) format('embedded-opentype'),
-         url(asset_path('goudy_bookletter_1911-webfont.woff')) format('woff'),
-         url(asset_path('goudy_bookletter_1911-webfont.ttf')) format('truetype'),
-         url(asset_path('goudy_bookletter_1911-webfont.svg#gaudy_bookletter')) format('svg');
-}
-
 .page-container {
   display: grid;
-  grid-template-columns: 1fr 90ch 1fr;
+  grid-template-columns: 1fr 70ch 1fr;
   grid-template-areas:
     ". header  ."
     ". nav     ."
@@ -27,7 +18,7 @@
 }
 
 body {
-  font-family: 'Gaudy Bookletter', serif;
+  font-family: Helvetica, sans-serif;
   color: #111;
   text-rendering: optimizeLegibility;
   border-top: 2px solid #ff6b6b;
@@ -199,8 +190,4 @@ div.highlighter-rouge {
   grid-area: content;
   overflow: hidden;
   min-width: 200px;
-}
-
-.c3 svg {
-  font-family: 'Gaudy Bookletter', serif;
 }
