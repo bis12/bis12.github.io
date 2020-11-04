@@ -12,26 +12,19 @@ tasks:
       then: ${event.pull_request.head.repo.html_url}
       else: ${event.repository.html_url}
   in:
-  - provisionerId: 'proj-taskcluster'
+  - provisionerId: 'proj-imbstack'
     workerType: 'ci'
     created: {$fromNow: ''}
     deadline: {$fromNow: '1 hour'}
     payload:
       maxRunTime: 3600
       image: node:10
-      features:
-        taskclusterProxy: true
       command:
         - /bin/bash
         - '--login'
         - '-c'
         - >-
-          git clone ${repository} repo &&
-          cd repo &&
-          git config advice.detachedHead false &&
-          git checkout ${head_rev} &&
-          yarn &&
-          yarn test
+          echo "HI"
     metadata:
       name: test
       description: Tests for azure-entities
