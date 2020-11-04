@@ -1,36 +1,39 @@
-version: 0
-metadata:
-  name: imbstack.com
-  description: personal website
-  owner: '{{ event.head.user.email }}'
-  source: '{{ event.head.repo.url }}'
+version: 1
+policy:
+  pullRequests: public
 tasks:
-  - provisionerId: '{{ taskcluster.docker.provisionerId }}'
-    workerType: '{{ taskcluster.docker.workerType }}'
-    extra:
-      github:
-        branches:
-          - master
-        events:
-          - push
-    scopes:
-      - secrets:get:repo:github.com/imbstack/imbstack.com
+  $let:
+    head_rev:
+      $if: 'tasks_for == "github-pull-request"'
+      then: ${event.pull_request.head.sha}
+      else: ${event.after}
+    repository:
+      $if: 'tasks_for == "github-pull-request"'
+      then: ${event.pull_request.head.repo.html_url}
+      else: ${event.repository.html_url}
+  in:
+  - provisionerId: 'proj-taskcluster'
+    workerType: 'ci'
+    created: {$fromNow: ''}
+    deadline: {$fromNow: '1 hour'}
     payload:
+      maxRunTime: 3600
+      image: node:10
       features:
         taskclusterProxy: true
-      maxRunTime: 3600
-      image: 'imbstack/jekyll-s3'
-      env:
-        JEKYLL_ENV: production
       command:
-        - '/bin/bash'
+        - /bin/bash
         - '--login'
         - '-c'
         - >-
-          git clone {{event.head.repo.url}} repo && cd repo && git checkout {{event.head.sha}} && make website-push
+          git clone ${repository} repo &&
+          cd repo &&
+          git config advice.detachedHead false &&
+          git checkout ${head_rev} &&
+          yarn &&
+          yarn test
     metadata:
-      name: Upload to S3
-      description: Run Jekyll and upload Site
-      owner: '{{ event.head.user.email }}'
-      source: '{{ event.head.repo.url }}'
-
+      name: test
+      description: Tests for azure-entities
+      owner: nobody@mozilla.com
+      source: https://github.com/taskcluster/azure-entities
