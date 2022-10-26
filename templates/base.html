@@ -30,7 +30,7 @@
 				<ul>
 					{% set root_section = get_section(path="_index.md") %}
 					{% for page in root_section.pages %}
-					<li>{{ page.date | date(format="%b %-d, %Y") }} <a href="{{ page.permalink | safe }}">{{ page.title }}</a></li>
+					<li>{{ page.date | date(format="%b %-d, %Y") }} <a href="{{ page.path | safe }}">{{ page.title }}</a></li>
 					{% endfor %}
 				</ul>
 			</nav>
