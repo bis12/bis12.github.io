@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width initial-scale=1" />
+
+		<title></title>
+		<meta name="description" content="">
+
+		<link rel="icon" href="/favicon.ico">
+		<link href="/main.css" rel="stylesheet" type="text/css" media="all">
+	</head>
+
+	<body>
+		<div class="page-container">
+			<header class="page-header">
+				<h1><a href="/">imbstack</a></h1>
+				<div class="link-box">
+					<a href="https://github.com/imbstack">github</a>
+					<a href="https://twitter.com/imbstack">twitter</a>
+				</div>
+			</header>
+			<nav class="page-nav">
+				<input type="checkbox" id="show-nav-controller"/>
+				<hr class="left"/>
+				<label for="show-nav-controller"><h5>Read More</h5></label>
+				<hr class="right" />
+				<ul>
+					
+					
+					<li>May 3, 2020 <a href="https://imbstack.com/debugging-docker-connection-resets/">Debugging Docker Connection Reset by Peer</a></li>
+					
+					<li>Apr 21, 2017 <a href="https://imbstack.com/tc-1-0/">The Future of Taskcluster</a></li>
+					
+					<li>Mar 15, 2017 <a href="https://imbstack.com/what-and-why-is-taskcluster/">What and Why is Taskcluster</a></li>
+					
+					<li>Sep 9, 2016 <a href="https://imbstack.com/taskcluster-notify/">Announcing Taskcluster Notifications</a></li>
+					
+					<li>Nov 14, 2015 <a href="https://imbstack.com/fun-with-imessage/">Fun with iMessage</a></li>
+					
+					<li>Oct 3, 2015 <a href="https://imbstack.com/attacking-the-monolith/">Attacking the Monolith</a></li>
+					
+				</ul>
+			</nav>
+
+			<main class="page-content">
+				
+
+<div class="post">
+	<small>
+		May 3, 2020 |
+		<a href="https:&#x2F;&#x2F;imbstack.com&#x2F;debugging-docker-connection-resets&#x2F;">permalink</a>
+	</small>
+	<h2>Debugging Docker Connection Reset by Peer</h2>
+	<h5 id="co-written-with-dustin-mitchell-and-cross-posted-here">co-written with Dustin Mitchell and cross-posted <a href="http://code.v.igoro.us/posts/2020/05/debugging-docker-connection-reset-by-peer.html">here</a></h5>
+<h3 id="symptoms">Symptoms</h3>
+<p>At the end of January this year the Taskcluster team was alerted to <a href="https://github.com/web-platform-tests/wpt/issues/21529">networking issues in a user's tasks</a>. The first
+report involved <code>ETIMEDOUT</code> but later on it became clear that the more frequent issue was involving <code>ECONNRESET</code> in the middle of downloading artifacts necessary to
+run the tests in the tasks. It seemed it was only occurring on downloads from Google (https://dl.google.com) on our workers running in GCP, and only with relatively large artifacts. This led
+us to initially blame some bit of infrastructure outside of Taskcluster but eventually we found the issue to be with how Docker was handling networking on our worker machines.</p>
+<h3 id="investigation">Investigation</h3>
+<p>The initial stages of the investigation were focused on exploring possible causes of the error and on finding a way to reproduce the error.</p>
+<p>Investigation of an intermittent error in a high-volume system like this is slow and difficult work.
+It's difficult to know if an intervention fixed the issue just because the error does not recur.
+And it's difficult to know if an intervention did <em>not</em> fix the issue, as &quot;Connection reset by peer&quot; can be due to transient network hiccups.
+It's also difficult to gather data from production systems as the quantity of data per failure is unmanageably high.</p>
+<p>We explored a few possible causes of the issue, all of which turned out to be dead ends.</p>
+<ul>
+<li><em>Rate Limiting or Abuse Prevention</em> - The TC team has seen cases where downloads from compute clouds were limited as a form of abuse prevention.
+Like many CI processes, the WPT jobs download Chrome on every run, and it's possible that a series of back-to-back tasks on the same worker could appear malicious to an abuse-prevention device.</li>
+<li><em>Outages of the download server</em> - This was unlikely, given Google's operational standards, but worth exploring since the issues seemed limited to <code>dl.google.com</code>.</li>
+<li><em>Exhaustion of Cloud NAT addresses</em> - Resource exhaustion in the compute cloud might have been related.  This was easily ruled out with the observation that workers are not using Cloud NAT.</li>
+</ul>
+<p>At the same time, several of us were working on reproducing the issue in more controlled circumstances.
+This began with interactive sessions on Taskcluster workers, and soon progressed to a script that reproduced the issue easily on a GCP instance running the VM image used to run workers.
+An important observation here was that the issue only reproduced <em>inside</em> of a docker container: downloads from the host worked just fine.
+This seemed to affect all docker images, not just the image used in WPT jobs.</p>
+<p>At this point, we were able to use Taskcluster itself to reproduce the issue at scale, creating a <a href="https://community-tc.services.mozilla.com/tasks/groups/UyRo436cTXC-Zez_lMgzPQ">task group</a> of identical tasks running the reproduction recipe.
+The &quot;completed&quot; tasks in that group are the successful reproductions.</p>
+<p>Armed with quick, reliable reproduction, we were able to start capturing dumps of the network traffic.
+From these, we learned that the downloads were failing mid-download (tens of MB into a ~65MB file).
+We were also able to confirm that the error is, indeed, a TCP RST segment from the peer.</p>
+<p>Searches for similar issues around this time found a blog post entitled <a href="https://medium.com/swlh/fix-a-random-network-connection-reset-issue-in-docker-kubernetes-5c57a11de170">&quot;Fix a random network Connection Reset issue in Docker/Kubernetes&quot;</a>, which matched our issue in many respects.
+It's a long read, but the summary is that conntrack, which is responsible for maintaining NAT tables in the Linux kernel, sometimes gets mixed up and labels a valid packet as INVALID.
+The default configuration of iptables forwarding rules is to ignore INVALID packets, meaning that they fall through to the default ACCEPT for the FILTER table.
+Since the port is not open on the host, the host replies with an RST segment.
+Docker containers use NAT to translate between the IP of the container and the IP of the host, so this would explain why the issue only occurs in a Docker container.</p>
+<p>We were, indeed, seeing INVALID packets as revealed by <code>conntrack -S</code>, but there were some differences from our situation, so we continued investigating.
+In particular, in the blog post, the connection errors are seen there in the opposite direction, and involved a local server for which the author had added some explicit firewall rules.</p>
+<p>Since we hypothesized that NAT was involved, we captured packet traces both inside the Docker container and on the host interface, and combined the two.
+The results were pretty interesting!
+In the dump output below, 74.125.195.136 is dl.google.com, 10.138.0.12 is the host IP, and 172.17.0.2 is the container IP.
+10.138.0.12 is a private IP, suggesting that there is an additional layer of NAT going on between the host IP and the Internet, but this was not the issue.</p>
+<p>A &quot;normal&quot; data segment looks like</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>22:26:19.414064 ethertype IPv4 (0x0800), length 26820: 74.125.195.136.https &gt; 10.138.0.12.60790: Flags [.], seq 35556934:35583686, ack 789, win 265, options [nop,nop,TS val 2940395388 ecr 3057320826], length 26752
+</span><span>22:26:19.414076 ethertype IPv4 (0x0800), length 26818: 74.125.195.136.https &gt; 172.17.0.2.60790: Flags [.], seq 35556934:35583686, ack 789, win 265, options [nop,nop,TS val 2940395388 ecr 3057320826], length 26752
+</span></code></pre>
+<p>here the first line is outside the container and the second line is inside the container; the SNAT translation has rewritten the host IP to the container IP.
+The sequence numbers give the range of bytes in the segment, as an offset from the initial sequence number, so we are almost 34MB into the download (from a total of about 65MB) at this point.</p>
+<p>We began by looking at the end of the connection, when it failed.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>A
+</span><span>22:26:19.414064 ethertype IPv4 (0x0800), length 26820: 74.125.195.136.https &gt; 10.138.0.12.60790: Flags [.], seq 35556934:35583686, ack 789, win 265, options [nop,nop,TS val 2940395388 ecr 3057320826], length 26752
+</span><span>22:26:19.414076 ethertype IPv4 (0x0800), length 26818: 74.125.195.136.https &gt; 172.17.0.2.60790: Flags [.], seq 35556934:35583686, ack 789, win 265, options [nop,nop,TS val 2940395388 ecr 3057320826], length 26752
+</span><span>
+</span><span>B
+</span><span>22:26:19.414077 ethertype IPv4 (0x0800), length 2884: 74.125.195.136.https &gt; 10.138.0.12.60790: Flags [.], seq 34355910:34358726, ack 789, win 265, options [nop,nop,TS val 2940395383 ecr 3057320821], length 2816
+</span><span>
+</span><span>C
+</span><span>22:26:19.414091 ethertype IPv4 (0x0800), length 56: 10.138.0.12.60790 &gt; 74.125.195.136.https: Flags [R], seq 821696165, win 0, length 0
+</span><span>
+</span><span>...
+</span><span>X
+</span><span>22:26:19.416605 ethertype IPv4 (0x0800), length 66: 172.17.0.2.60790 &gt; 74.125.195.136.https: Flags [.], ack 35731526, win 1408, options [nop,nop,TS val 3057320829 ecr 2940395388], length 0
+</span><span>22:26:19.416626 ethertype IPv4 (0x0800), length 68: 10.138.0.12.60790 &gt; 74.125.195.136.https: Flags [.], ack 35731526, win 1408, options [nop,nop,TS val 3057320829 ecr 2940395388], length 0
+</span><span>
+</span><span>Y
+</span><span>22:26:19.416715 ethertype IPv4 (0x0800), length 56: 74.125.195.136.https &gt; 10.138.0.12.60790: Flags [R], seq 3900322453, win 0, length 0
+</span><span>22:26:19.416735 ethertype IPv4 (0x0800), length 54: 74.125.195.136.https &gt; 172.17.0.2.60790: Flags [R], seq 3900322453, win 0, length 0
+</span></code></pre>
+<p>Segment (A) is a normal data segment, forwarded to the container.
+But (B) has a much lower sequence number, about 1MB earlier in the stream, and it is not forwarded to the docker container.
+Notably, (B) is also about 1/10 the size of the normal data segments -- we never figured out why that is the case.
+Instead, we see an RST segment (C) sent back to <code>dl.google.com</code>.
+This situation repeats a few times: normal segment forwarded, late segment dropped, RST segment sent to peer.</p>
+<p>Finally, the docker container sends an ACK segment (X) for the segments it has received so far, and this is answered by an RST segment (Y) from the peer, and that RST segment is forwarded to the container.
+This final RST segment is reasonable from the peer's perspective: we have already reset its connection, so by the time it gets (X) the connection has been destroyed.
+But this is the first the container has heard of any trouble on the connection, so it fails with &quot;Connection reset by peer&quot;.</p>
+<p>So it seems that the low-sequence-number segments are being flagged as INVALID by conntrack and causing it to send RST segments.
+That's a little surprising -- why is conntrack paying attention to sequence numbers at all?
+From <a href="https://www.usenix.org/legacy/events/sec01/invitedtalks/rooij.pdf">this article</a> it appears this is a security measure, helping to protect sockets behind the NAT from various attacks on TCP.</p>
+<p>The second surprise here is that such late TCP segments are present.
+Scrolling back through the dump output, there are many such packets -- enough that manually labeling them is infeasible.
+However, graphing the sequence numbers shows a clear pattern:</p>
+<div id="debugging-fig1" class="figure">
+	<img src="/img/tcp-seq-graph.png"/>
+</div>
+<p>Note that this covers only the last 16ms of the connection (the horizontal axis is in seconds), carrying about 200MB of data (the vertical axis is sequence numbers, indicating bytes).
+The &quot;fork&quot; in the pattern shows a split between the up-to-date segments, which seem to accelerate, and the delayed segments.
+The delayed segments are only slightly delayed - 2-3ms.
+But a spot-check of a few sequence ranges in the dump shows that they had already been retransmitted by the time they were delivered.
+When such late segments were not dropped by conntrack, the receiver replied to them with what's known as a duplicate ACK, a form of selective ACK that says &quot;I have received that segment, and in fact I've received many segments since then.&quot;</p>
+<p>Our best guess here is that some network intermediary has added a slight delay to some packets.
+But since the RTT on this connection is so short, that delay is relatively huge and puts the delayed packets outside of the window where conntrack is willing to accept them.
+That helps explain why other downloads, from hosts outside of the Google infrastructure, do not see this issue: either they do not traverse the intermediary delaying these packets, or the RTT is long enough that a few ms is not enough to result in packets being marked INVALID.</p>
+<h3 id="resolution">Resolution</h3>
+<p>After we posted these results in the issue, our users realized these symptoms looked a lot like <a href="https://github.com/moby/libnetwork/issues/1090">a Moby libnetwork bug</a>. We adopted a workaround
+mentioned there where we use conntrack to drop invalid packets in iptables rather than trigger RSTs</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>iptables -I INPUT -m conntrack --ctstate INVALID -j DROP
+</span></code></pre>
+<p>The drawbacks of that approach listed in the bug are acceptable for our uses. After baking a new machine images we tried to reproduce the issue at scale as we had done during the debugging
+of this issue and were not able to. We updated all of our worker pools to use this image the next day and it seems like we're now in the clear.</p>
+<h3 id="security-implications">Security Implications</h3>
+<p>As we uncovered this behavior, there was some concern among the team that this represented a security issue.
+When conntrack marks a packet as INVALID and it is handled on the host, it's possible that the same port on the host <em>is</em> in use, and the packet could be treated as part of that connection.
+However, TCP identifies connections with a &quot;four-tuple&quot; of source IP and port + destination IP and port.
+But the tuples cannot match, or the remote end would have been unable to distinguish the connection &quot;through&quot; the NAT from the connection terminating on the host.
+So there is no issue of confusion between connections here.</p>
+<p>However, there is the possibility of a denial of service.
+If an attacker can guess the four-tuple for an existing connection and forge an INVALID packet matching it, the resulting RST would destroy the connection.
+This is probably only an issue if the attacker is on the same network as the docker host, as otherwise reverse-path filtering would discard such a forged packet.</p>
+<p>At any rate, this issue appears to be fixed in more recent distributions.</p>
+<h3 id="thanks">Thanks</h3>
+<p><a href="https://github.com/hexcles">@hexcles</a>, <a href="https://github.com/djmitche">@djmitche</a>, <a href="https://github.com/stephenmcgruer">@stephenmcgruer</a></p>
+
+</div>
+
+<div class="post">
+	<small>
+		Apr 21, 2017 |
+		<a href="https:&#x2F;&#x2F;imbstack.com&#x2F;tc-1-0&#x2F;">permalink</a>
+	</small>
+	<h2>The Future of Taskcluster</h2>
+	<p>Last week the Taskcluster team met to talk about the future of the platform. We called this the Taskcluster 1.0 discussion and so the first topic up for debate was:</p>
+<blockquote>
+Just what the heck does 1.0 mean anyway?
+</blockquote>
+<p>With that question in mind, we'll cover herein what we've decided we mean when we say that and how we intend to get there. This will be a quick summary of our current position.</p>
+<h3 id="what-is-1-0">What is 1.0</h3>
+<p>It boils down to a few categories, each of which are interrelated.</p>
+<h4 id="no-more-breaking-changes">No more breaking changes</h4>
+<p>Obviously a Taskcluster 2.0 will always be a possibility allowing us to break core functionality, but that sort of transition is hard to pull off and will take a very long time. For all realistic scenarios, we'll be on 1.0 forever. This means that we must be quite happy with the core concepts that we use before we move to this release.</p>
+<h4 id="remove-deprecated-parts">Remove deprecated parts</h4>
+<p>This is less important to be done other than for general ease of maintenance for us and ease of getting-started for others. Before we get to 1.0, anything that we've said is deprecated should actually be turned off. The major example of this is <a href="https://github.com/taskcluster/task-graph-scheduler">Task-Graph Scheduler</a>. No Taskcluster internal services use this anymore, but some users haven't been moved off of it yet.</p>
+<h4 id="improved-self-serve-for-scopes">Improved self-serve for scopes</h4>
+<p>The scopes system we have currently works quite well for the purposes it was designed for. Adding new users will require us to make scopes more flexible. This might involve renaming certain concepts, using longer IDs, and rethinking how we structure scopes. In general, the work will be to enable as much self-service as possible. In addition, we'd like to have the auth service itself do authorization (not just authentication) for clients that have Taskcluster credentials. This will be safer and allow for some improvements in general.</p>
+<h4 id="better-introduction-docs">Better introduction docs</h4>
+<p>This is related to the first three goals. Once the basic concepts are nailed down, the process of adding a project to Taskcluster will be streamlined and we should make it easy to figure out how to do so. In addition, once the initial steps are taken, figuring out how to use some of the more complicated parts of Taskcluster should be straightforward. We'll never be as easy to use as Travis, but that's not our goal. We want to handle more complicated projects for which Travis just isn't enough.</p>
+<h3 id="what-is-going-to-change">What is going to change</h3>
+<p>This is not an exhaustive list, but covers some of the most obvious work we have ahead.</p>
+<h4 id="index-and-artifacts">Index and Artifacts</h4>
+<p>There's a lot of ongoing discussion here, but mostly we want to make it easier to connect tasks together. Currently we have a well defined way to &quot;export&quot; objects from a task via the artifacts field. However, if you want to use those same artifacts in a downstream task, you must write some code to download the artifacts at the start of your task. This is not a terrible amount of work, but we'd like to see if we can help make this process easier and less error prone.</p>
+<p>In addition, the index in general will probably be updated. We are not sure that the default way of indexing via pulse routes is ideal and may move to some other strategy. In addition, being able to index failed tasks and have some limited historical view of tasks may be desirable as well. We have a lot to think about here.</p>
+<h4 id="auth">Auth</h4>
+<p>Everything we're thinking about changing with scopes will mean changes in the auth service. The most noticeable external changes will involve user credentials. We will be reworking the way they work so that services such as Treeherder can keep up-to-date credentials for Taskcluster for as long as they wish to keep a user logged in for. In addition, we'll be better able to support permissions from Github and other providers.</p>
+<p>We'll also likely be reworking how scopes are used in general. We will need to do this to be more flexible with things like priority levels in the queue.</p>
+<h3 id="what-is-still-being-debated">What is still being debated</h3>
+<p>The path forward can take two general paths. First would be to nail down an integration layer on top of Taskcluster that is nicely defined and created specifically for CI use case. The latter would be to make all of our currently existing services &quot;complete&quot; before we move forward. It seems the current focus will continue to be on tamping down the ground around the core, but at some point in the future we may start to think about the integration layer much more.</p>
+<p>It is very important that we continue to think of Taskcluster as a meta-CI, in the lineage of Buildbot. Rather than a full CI solution that comes out of the box ready to go like Travis or Jenkins. Keeping that in mind, we will try to make the common tasks much more easy than they are now while still enabling uncommon tasks to be done with Taskcluster. If you have any thoughts on this, please let us know! Now is the time to discuss.</p>
+
+</div>
+
+<div class="post">
+	<small>
+		Mar 15, 2017 |
+		<a href="https:&#x2F;&#x2F;imbstack.com&#x2F;what-and-why-is-taskcluster&#x2F;">permalink</a>
+	</small>
+	<h2>What and Why is Taskcluster</h2>
+	<p>Taskcluster is the task execution framework that supports Mozilla's continuous integration and release processes. Like any system of its size, Taskcluster can be different things to different people. Probably the most common context that it is used in is in its life as a CI system for Firefox at Mozilla. From that perspective, it is an extremely customizable framework for building your own CI system, much in the tradition of <a href="http://buildbot.net/">Buildbot</a>. Some helpful people have used the framework to build a <a href="https://tools.taskcluster.net/quickstart/">Github-specific integration</a> much like <a href="https://travis-ci.org/">Travis</a> or <a href="https://circleci.com/">CircleCI</a>, so in a sense Taskcluster is like those as well. At the end of the day, the part of Taskcluster that ties all of that together is the platform it provides for running tasks in a cluster of machines -- hence, the hard-to-type and hard-to-say name.</p>
+<p>Taskcluster does a lot of hard work. As of the last 30 days leading up to the date of this post, we've done:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>Total Tasks
+</span><span>5,229,327
+</span><span>
+</span><span>Total Task Time
+</span><span>225.57 years
+</span><span>
+</span><span>Unique machines
+</span><span>695,734
+</span><span>
+</span><span>Average task duration
+</span><span>40.7 minutes
+</span></code></pre>
+<p>That covered 6113 <code>try</code>, 1002 <code>inbound</code>, and 134 <code>central</code> pushes, responsible for 2101346, 632790, and 252421 tasks respectively. The task time per machine averages out to about 2 hours per machine. We try to keep machines as fresh as possible (no machine lives more than 3 days), but also try to push machines up as close to the end of billing periods as possible.</p>
+<p>We'll cover a few aspects of Taskcluster here. First is our <a href="https://docs.taskcluster.net/manual/devel/principles#guiding-design-principles-for-taskcluster">guiding design principles</a> and how they help us build a robust, easy-to-use system. In the next post we'll follow the life of a task as it bumps around Taskcluster. From there we'll see how we use it at Mozilla (in combination with some of our other tools) to solve some classic CI problems. Finally we'll cover some future work.</p>
+<h3 id="guiding-principles">Guiding Principles</h3>
+<p>About a year ago the team met up for our confusingly named <a href="http://www.chesnok.com/daily/2016/03/11/workweek-tc-worker-workweek-recap/">2016 Worker Work Week</a>. One of the products of the week was a list of principles that we had been unofficially following up to that point and that we have been using to guide our decision making since then.</p>
+<h4 id="self-service">Self-service</h4>
+<p>This goes a step further than just making sure CI configuration is inside user's repositories. In addition to that we provide a flexible permissions system based on something we call <a href="https://docs.taskcluster.net/manual/integrations/apis/scopes">scopes</a>. Each action in Taskcluster can be guarded by a set of scopes (which are just strings) that a client must have. Scopes can either be an exact match, or be matched by a splat suffix.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>Action Requires: notify.irc.bstack.on_failure
+</span><span>Client Has: notify.irc.*
+</span><span>Success: true
+</span></code></pre>
+<p>Importantly, clients can assign scopes to other clients if they already posses that scope. So this allows us to endow certain users with the ability to give scopes to other users. Entire ecosystems of scopes can exist within Taskcluster without needing to involve the Taskcluster team itself.</p>
+<p>There are a few other ways that this rule manifests, but we'll cut short here.</p>
+<h4 id="robustness">Robustness</h4>
+<p>This is not a particularly surprising rule to live by for a CI system. However, anybody who uses a CI system on a day-to-day basis probably knows this is one of the most difficult goals to achieve. I can say as a relatively new member of this team and someone who's worked on a number of other build systems that compared to how rapidly we add features to Taskcluster and how heavily used it is, it breaks quite infrequently. I think this is due to a few of the principles we have in particular:</p>
+<ul>
+<li>No state in our services … ever!</li>
+<li>No running our own datastores … ever!</li>
+<li>Anything that can return a potentially unbounded list must be paginated.</li>
+</ul>
+<p>The first two are surprisingly hard to keep and my dinosaur brain constantly wants to break them for one reason or another. Keeping discipline within the team on this point has so far always ended up producing surprising/different ways of solving problems in a manner that still allows us to rely on external providers for the Hard Parts™.</p>
+<p>Another aspect of robustness is supporting large, complex to build projects like Firefox. This guides many of the decisions we make and is something that is different between Taskcluster and something like Travis.</p>
+<h4 id="enable-rapid-change">Enable rapid change</h4>
+<p>This is very near-and-dear to our hearts on Taskcluster. It is probably the primary reason something like Taskcluster exists in the first place. Buildbot is an awesome project and when used correctly, can do amazingly complex things. 
+A recurring issue with many installs of Buildbot is that configuration becomes ossified over time. This is due to configuration taking place separately from a project's source code and the configuration being complex enough that generally people become Buildbot specialists.</p>
+<p>Taskcluster was designed from the ground up to not have this issue. A single task can easily be designated in a small yaml file and more complex graphs of tasks with dependencies can be built up without too much effort, but in either case all configuration will live in your tree, not in Taskcluster itself.</p>
+<p>Another side of this is that Taskcluster itself is easy to change and add features to. We have a few services that are completely maintained by contributors. We also have a number of services that hook into events published by Taskcluster and are run entirely by other teams within Mozilla.</p>
+<h4 id="community-friendliness">Community friendliness</h4>
+<p>As mentioned before we have parts of Taskcluster that are entirely contributor run and are looking to expand that as time goes on. Part of this is the Mozilla-y-ness of the project. Pretty much everything happens in public. Anybody can come to our weekly meetings and anybody can sit in our irc channel. We are starting weekly events that are purely for community interaction that are mostly for just hanging out and chatting about semi-related things. <a href="https://wiki.mozilla.org/TaskCluster/Reading_By_Moonlight">The meetings</a> change time every week to make it easy for people all over the world to show up. You should show up sometime and say hi!</p>
+<h3 id="the-life-of-a-task">The Life of a Task</h3>
+<p>We've talked about why Taskcluster is the way it is. Now we'll talk about how it works. We'll talk about what a task is and what happens to it. Let's meet our task.</p>
+<pre data-lang="json" style="background-color:#2b303b;color:#c0c5ce;" class="language-json "><code class="language-json" data-lang="json"><span>{
+</span><span>  &quot;</span><span style="color:#a3be8c;">taskGroupId</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">BjadQTTpRiu5RZGBKIIw-Q</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">dependencies</span><span>&quot;: [&quot;</span><span style="color:#a3be8c;">RLBIMCE-SZ-sdrmM5QInuA</span><span>&quot;],
+</span><span>  &quot;</span><span style="color:#a3be8c;">requires</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">all-completed</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">provisionerId</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">aws-provisioner-v1</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">workerType</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">taskcluster-generic</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">schedulerId</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">-</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">routes</span><span>&quot;: [
+</span><span>    &quot;</span><span style="color:#a3be8c;">index.project.taskcluster.example-task</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.email.bstack@mozilla.com.on-failed</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.email.bstack@mozilla.com.on-exception</span><span>&quot;
+</span><span>  ],
+</span><span>  &quot;</span><span style="color:#a3be8c;">priority</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">normal</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">retries</span><span>&quot;: </span><span style="color:#d08770;">5</span><span>,
+</span><span>  &quot;</span><span style="color:#a3be8c;">created</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">2017-03-15T16:31:27.771Z</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">deadline</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">2017-03-16T16:31:27.771Z</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">expires</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">2017-06-15T16:31:27.771Z</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">scopes</span><span>&quot;: [
+</span><span>    &quot;</span><span style="color:#a3be8c;">auth:aws-s3:read-write:taskcluster-backups/</span><span>&quot;
+</span><span>  ],
+</span><span>  &quot;</span><span style="color:#a3be8c;">payload</span><span>&quot;: {
+</span><span>    &quot;</span><span style="color:#a3be8c;">image</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">node:7</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">command</span><span>&quot;: [
+</span><span>      &quot;</span><span style="color:#a3be8c;">/bin/bash</span><span>&quot;,
+</span><span>      &quot;</span><span style="color:#a3be8c;">-c</span><span>&quot;,
+</span><span>      &quot;</span><span style="color:#a3be8c;">git clone https://github.com/taskcluster/taskcluster-backup.git &amp;&amp; cd taskcluster-backup &amp;&amp; yarn global add node-gyp &amp;&amp; yarn install &amp;&amp; npm run compile &amp;&amp; node ./lib/main.js backup</span><span>&quot;
+</span><span>    ],
+</span><span>    &quot;</span><span style="color:#a3be8c;">maxRunTime</span><span>&quot;: </span><span style="color:#d08770;">86400</span><span>,
+</span><span>    &quot;</span><span style="color:#a3be8c;">env</span><span>&quot;: {
+</span><span>      &quot;</span><span style="color:#a3be8c;">FOO</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">bar</span><span>&quot;
+</span><span>    }
+</span><span>  },
+</span><span>  &quot;</span><span style="color:#a3be8c;">metadata</span><span>&quot;: {
+</span><span>    &quot;</span><span style="color:#a3be8c;">name</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">A task in taskcluster</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">description</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">This does a thing in taskcluster</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">owner</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">bstack@mozilla.com</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">source</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">https://something-related-to-this.com/whatever</span><span>&quot;
+</span><span>  }
+</span><span>}
+</span></code></pre>
+<p>Hello task, nice to meet you. This format is defined by a JSON schema and has <a href="https://docs.taskcluster.net/reference/platform/queue/docs/task-schema">autogenerated docs</a> (as do all of our api endpoints).</p>
+<h4 id="the-queue-service">The Queue Service</h4>
+<p>You take that task definition and send it to the taskcluster queue. This is the piece of the system that manages tasks and task dependencies. We can specify in the requires field whether or not the task should block on the prior tasks merely finishing, or whether they need to finish successfully. In our task, <code>RLBIMCE-SZ-sdrmM5QInuA</code> must finish with a successful status before our task will begin. Let's talk about what those funny strings in <code>taskGroupId</code> and <code>dependencies</code> are and what &quot;successful&quot; means a bit more.</p>
+<p>The task IDs are generated by clients rather than the server. Our client libraries have some helper functions to generate one when you create a task. They are 22 character URL-safe base64 v4 UUIDs (see <a href="http://tools.ietf.org/html/rfc4648#section-5">RFC 4648 sec. 5</a>). Basically, these are strings that won't collide and you can safely generate as many of them as you want and use them to identify tasks and task groups within Taskcluster. Referring back to the design principles from the first post, we make the client generate these to allow for idempotent retries when creating tasks.</p>
+<p>Task groups are for the most part a convenient way of relating tasks that are part of a larger whole together for easy viewing, they don't do much more than that. Dependencies can exist between task groups.</p>
+<p>Tasks can resolve in a few different ways that have different semantic meanings. The possible task states are <code>unscheduled pending running completed failed exception</code>. Taskcluster will label tasks as <code>exception</code> if something within taskcluster caused a task to fail to complete and it will automatically retry up to the number of times you specify in <code>retries</code>. Failures that you introduce (say something like a test in your CI suite failing) will cause the task to be <code>failed</code> and these are not retried. If you want to have retries around a flaky test, you build that into your test itself.</p>
+<h4 id="the-auth-service">The Auth Service</h4>
+<p>On to some other fields in our friendly task. What are scopes and how do you use them? Every service in Taskcluster can specify that an endpoint needs a client to have certain scopes before it will run. The service that maintains clients and their relation to scopes is called the auth service. The most important <a href="https://docs.taskcluster.net/reference/platform/auth/references/api#authenticateHawk">endpoint</a> that service provides is a way to validate <a href="https://github.com/hueniverse/hawk/">Hawk</a> credentials. In this manner, we keep all credentials only known by the auth service itself and the client that has them. We can happily add new services to the Taskcluster ecosystem and trust them not to leak credentials. This aligns with our desires to be community friendly from the guiding principles.</p>
+<p>As much as possible, we try to have services have no credentials of their own. Each time a service has credentials and it tries to reduce its power to use them on behalf of a client, we have an opportunity for a <a href="https://en.wikipedia.org/wiki/Confused_deputy_problem">confused deputy</a>. Avoiding those sorts of situations are very important to us.</p>
+<h4 id="routing-events">Routing Events</h4>
+<p>One of the more confusing fields in the task definition is the <code>routes</code> field.</p>
+<pre data-lang="json" style="background-color:#2b303b;color:#c0c5ce;" class="language-json "><code class="language-json" data-lang="json"><span>{
+</span><span>  &quot;</span><span style="color:#a3be8c;">routes</span><span>&quot;: [
+</span><span>    &quot;</span><span style="color:#a3be8c;">index.project.taskcluster.example-task</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.email.bstack@mozilla.com.on-failed</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.email.bstack@mozilla.com.on-exception</span><span>&quot;
+</span><span>  ]
+</span><span>}
+</span></code></pre>
+<p>All Taskcluster services can emit events into <a href="http://www.rabbitmq.com/">RabbitMQ</a> based on certain events. Unsurprisingly, all services can also listen for events. Adding routes to the routes field of a task will cause the queue to emit events on task completion. Our example task here emits 3 routes. The first one is listened for by the index service, which stores the taskId as the value to a key that is whatever the rest of that route is. So in this case, you can ask the index service for <code>project.taskcluster.example-task</code> and it will tell you whatever the most recent task that was labeled that way was. We use this for finding artifacts of the latest builds of a branch for instance. Which routes you are allowed to write to are controlled by scopes to prevent unauthorized overwrites.</p>
+<p>The <code>notify.*</code> fields route to the notifications service which can send emails or irc messages. You can ask it to alert you on failures, exceptions, success, or all of the above.</p>
+<p>These services also expose an API if you wish to add custom indexing our notifications. For instance, we have users that generate daily reports and send them to themselves with the notifications service.</p>
+<p>That brings up one other note, Taskcluster provides a hooks service that allows you to have cron-style jobs that execute based on time. This takes care of common cases like a nightly performance report or daily backups.</p>
+<h4 id="workers-and-the-provisioner">Workers and the Provisioner</h4>
+<p>We keep talking about tasks running, but where do they run and how do they do it? Tasks run on workers. Workers can be many things, but they all share a couple things:</p>
+<ul>
+<li>They ask the queue for work</li>
+<li>They have a way of running that work</li>
+<li>They report back to the queue the status of the work</li>
+</ul>
+<p>Generally what this means at this point is an instance of our <a href="https://github.com/taskcluster/docker-worker">Docker worker</a> running on a Linux machine in AWS or <a href="https://github.com/taskcluster/generic-worker">generic worker</a> on a Windows machine. The <code>payload</code> section of our task is what the worker is interested in. Once the queue gives a task to work on, the worker looks there to see what to do.</p>
+<pre data-lang="json" style="background-color:#2b303b;color:#c0c5ce;" class="language-json "><code class="language-json" data-lang="json"><span>{
+</span><span>  &quot;</span><span style="color:#a3be8c;">payload</span><span>&quot;: {
+</span><span>    &quot;</span><span style="color:#a3be8c;">image</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">node:7</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">command</span><span>&quot;: [
+</span><span>      &quot;</span><span style="color:#a3be8c;">/bin/bash</span><span>&quot;,
+</span><span>      &quot;</span><span style="color:#a3be8c;">-c</span><span>&quot;,
+</span><span>      &quot;</span><span style="color:#a3be8c;">git clone https://github.com/taskcluster/taskcluster-backup.git &amp;&amp; cd taskcluster-backup &amp;&amp; yarn global add node-gyp &amp;&amp; yarn install &amp;&amp; npm run compile &amp;&amp; node ./lib/main.js backup</span><span>&quot;
+</span><span>    ],
+</span><span>    &quot;</span><span style="color:#a3be8c;">maxRunTime</span><span>&quot;: </span><span style="color:#d08770;">86400</span><span>,
+</span><span>    &quot;</span><span style="color:#a3be8c;">env</span><span>&quot;: {
+</span><span>      &quot;</span><span style="color:#a3be8c;">FOO</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">bar</span><span>&quot;
+</span><span>    }
+</span><span>  }
+</span><span>}
+</span></code></pre>
+<p>The task we've been looking at is designed to run on docker-worker. It specifies that it wants a container based on the <code>node:7</code> image to run the commands listed in the <code>command</code> field. We want the task to be killed after 24 hours, and we want the env to have a variable called <code>FOO</code> with the value of <code>bar</code> in it. It is pretty self-explanatory. How did we know we would be running this task on a docker-worker though?</p>
+<pre data-lang="json" style="background-color:#2b303b;color:#c0c5ce;" class="language-json "><code class="language-json" data-lang="json"><span>{
+</span><span>  &quot;</span><span style="color:#a3be8c;">provisionerId</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">aws-provisioner-v1</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">workerType</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">taskcluster-generic</span><span>&quot;
+</span><span>}
+</span></code></pre>
+<p>This tells the queue which sorts of workers should be allowed to request the task. A provisioner is a service that manages a set of machines running workers and the <code>workerType</code> is a definition within that provisioner of a type of worker. That includes things like which OS version, which cloud provider, which version of Docker, and how much space should be available on the machine in addition to which worker client is running there.</p>
+<p>We allow for many different worker types. Some of the most well supported provide some great features. Docker worker allows for an interactive session to be started with access to both the command line inside the running task and the screen output. This makes quick work of oftentimes hard-to-debug test issues that only happen in CI but not locally. Again, access to all of this is guarded by scopes.</p>
+<p>At this time there's basically one provisioner and it runs an autoscaling group of nodes in AWS that grow and shrink as demand changes in the queue. We are doing a lot of work in this part of our stack to provide more platforms to developers.</p>
+<h3 id="use-cases">Use Cases</h3>
+<p>Taskcluster does not make a full CI/CD system on its own. Mozilla has quite a few other open-source tools that make up our full set of systems. Some of these, like the service that <a href="https://github.com/integration/taskcluster">integrates us with Github</a> are managed by the Taskcluster team, while others are run by other teams within Mozilla.</p>
+<p>For the building and testing of Gecko itself, a lot of tools work together to make the system run smoothly. Two of the most important tools here are <a href="https://treeherder.mozilla.org/">Treeherder</a> and <a href="https://brasstacks.mozilla.com/orangefactor/">Orange Factor</a>. These are focused on the tests themselves, which Taskcluster does not concern itself with. They are quite powerful tools, used by developers and the tree caretakers (called sheriffs) alike. Orange Factor is one of the tools we use for tracking flaky tests. The Taskcluster team is occasionally responsible for things that show up in Orange Factor, so we keep a close eye on the dashboard as well.</p>
+<p>From there, we need to actually publish new version of Firefox to the world. <a href="https://github.com/mozilla/balrog">Balrog</a>, <a href="https://github.com/mozilla-releng/funsize">funsize</a>, and <a href="https://github.com/mozilla-releng/beetmoverscript">beetmover</a> interact with Taskcluster to make updates available for Firefox users when we push new code.</p>
+<h3 id="future-work">Future Work</h3>
+<p>Conveniently, we're beginning our quarterly planning now, so it will be easy to see across the entire team what we're going to be focusing on in the next few months.</p>
+<ul>
+<li>Get 100% of Firefox build into Taskcluster</li>
+<li>A <a href="http://www.qemu-project.org/">QEMU</a> based engine in our worker</li>
+<li>Syncing of Github and Taskcluster permissions</li>
+<li>Real-Time Queue + Worker inspection to track the full lifetime of a task</li>
+<li>Improved security audit tooling and further security hardening</li>
+<li>Redeployability and general cluster management improvements</li>
+</ul>
+<p>In general our team is working mostly on finishing the migration from Buildbot to Taskcluster at this time, but as that work wraps up, we'll move onto further integration/core improvements and making operations/redeployability easier.</p>
+<p>If you're interested in helping out, here are some good resources:</p>
+<ul>
+<li><a href="https://docs.taskcluster.net/">Docs Site</a></li>
+<li><a href="https://tools.taskcluster.net/">Tools Site</a></li>
+<li><a href="https://wiki.mozilla.org/TaskCluster">Wiki</a></li>
+<li><a href="https://github.com/taskcluster/">Github</a></li>
+<li><a href="https://www.joshmatthews.net/bugsahoy/?taskcluster=1">Bugs Ahoy!</a></li>
+<li><a href="https://bugzilla.mozilla.org/buglist.cgi?cmdtype=dorem&amp;remaction=run&amp;namedcmd=Taskcluster%20good%20first%20bugs&amp;sharer_id=464696&amp;list_id=13490731">Good First Bugs</a></li>
+<li><a href="https://wiki.mozilla.org/TaskCluster/Round_Tuit_Box">Slightly Larger Projects</a></li>
+<li><a href="https://wiki.mozilla.org/IRC">#taskcluster on Mozilla IRC</a></li>
+<li><a href="https://docs.taskcluster.net/people">People of Taskcluster</a></li>
+</ul>
+
+</div>
+
+<div class="post">
+	<small>
+		Sep 9, 2016 |
+		<a href="https:&#x2F;&#x2F;imbstack.com&#x2F;taskcluster-notify&#x2F;">permalink</a>
+	</small>
+	<h2>Announcing Taskcluster Notifications</h2>
+	<p>One of the most requested features for Taskcluster has been a way to be notified on task completion rather than checking back in on the task-inspector tab every few minutes. As of today, taskcluster-notify makes that easy to do. If you have any experience indexing artifacts with routes in a task definition, you're already familiar with the mechanism for adding notifications to your tasks. If not, it's quite easy to figure out!</p>
+<p>This service can also be used via a simple api, if you have the correct scopes.</p>
+<p>There are (as of today) three types of notifications and four types of filters possible on these notifications.</p>
+<h3 id="notification-types">Notification Types</h3>
+<p><strong>IRC:</strong> This is only enabled on <code>irc.mozilla.org</code> for now. You can specify either a user or a channel to send a notification to upon task completion. You'll receive a message like the following:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>Task &quot;Taskcluster Notify Test&quot; complete with status &#39;completed&#39;. Inspect: https://tools.taskcluster.net/task-inspector/#f0rU3kS7RmG3xSWwbq6Ndw
+</span></code></pre>
+<p><strong>Email:</strong> We can send you both nicely formatted or plain text emails depending on which email client you want to use. You can send to any email address, so long as you have the correct scopes (we'll discuss scopes later).</p>
+<div id="notify-fig1" class="figure">
+	<img src="/img/notify-email-example.png"/>
+</div>
+<p><strong>Pulse:</strong> We can also send a Pulse message that is documented <a href="https://docs.taskcluster.net/reference/core/notify/exchanges">on this page</a>. The message is  pretty much just the status of the task.</p>
+<h3 id="filters">Filters</h3>
+<p><strong>on-any:</strong> This does what it sounds like and will notify you of task-completion no matter how it ends.</p>
+<p><strong>on-success:</strong> Only when the task completes with no errors will you get a notification.</p>
+<p><strong>on-failed:</strong> Only when the task fails for non-internal reasons will this be triggered. This could be your tests failing or a lint step failing, as examples.</p>
+<p><strong>on-exception:</strong> This is triggered when some sort of internal issue happens in Taskcluster and we had to cancel the task.</p>
+<p>More thorough (and more correct) documentation of what task statuses are can be found <a href="https://docs.taskcluster.net/reference/platform/queue/api-docs#status">on the docs site</a>.</p>
+<h3 id="route-syntax">Route Syntax</h3>
+<p>But what you've really been waiting for is to know how to use this, so here's a simple set of routes that will do some of the things you might want.</p>
+<pre data-lang="json" style="background-color:#2b303b;color:#c0c5ce;" class="language-json "><code class="language-json" data-lang="json"><span>{
+</span><span>  &quot;</span><span style="color:#a3be8c;">routes</span><span>&quot;: [
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.email.&lt;you@you.com&gt;.on-any</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.irc-user.&lt;your-mozilla-irc-nick&gt;.on-failed</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.irc-channel.&lt;a-mozilla-irc-channel&gt;.on-completed</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.pulse.&lt;a-pulse-routing-key&gt;.on-exception</span><span>&quot;
+</span><span>  ]
+</span><span>}
+</span></code></pre>
+<h3 id="scopes">Scopes</h3>
+<p>If you're using this from the api instead of via a task definition, you'll need some simple <code>notify.&lt;type&gt;.*</code> scopes of some sort. The specific ones you need are documented on the <a href="https://docs.taskcluster.net/reference/core/notify/api-docs">api docs</a>.</p>
+<p>If you're using this via task definitions, access to notifications is guarded with route scopes. As an example, to allow the taskcluster-github project to email and ping in irc when builds complete, it has the scopes</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>queue:route:notify.email.*
+</span><span>queue:route:notify.irc-channel.*
+</span><span>queue:route:notify.irc-user.*
+</span></code></pre>
+<h3 id="example">Example</h3>
+<p>Finally, an example to tie it all together. This is the as-of-this-writing <code>.taskcluster.yml</code> of the aforementioned taskcluster-github project.</p>
+<p>{% raw %}</p>
+<pre data-lang="yaml" style="background-color:#2b303b;color:#c0c5ce;" class="language-yaml "><code class="language-yaml" data-lang="yaml"><span style="color:#bf616a;">version</span><span>: </span><span style="color:#d08770;">0
+</span><span style="color:#bf616a;">metadata</span><span>:
+</span><span>  </span><span style="color:#bf616a;">name</span><span>: &quot;</span><span style="color:#a3be8c;">TaskCluster GitHub Tests</span><span>&quot;
+</span><span>  </span><span style="color:#bf616a;">description</span><span>: &quot;</span><span style="color:#a3be8c;">All non-integration tests for taskcluster github</span><span>&quot;
+</span><span>  </span><span style="color:#bf616a;">owner</span><span>: &quot;</span><span style="color:#a3be8c;">{{ event.head.user.email }}</span><span>&quot;
+</span><span>  </span><span style="color:#bf616a;">source</span><span>: &quot;</span><span style="color:#a3be8c;">{{ event.head.repo.url }}</span><span>&quot;
+</span><span style="color:#bf616a;">tasks</span><span>:
+</span><span>  - </span><span style="color:#bf616a;">provisionerId</span><span>: &quot;</span><span style="color:#a3be8c;">{{ taskcluster.docker.provisionerId }}</span><span>&quot;
+</span><span>    </span><span style="color:#bf616a;">workerType</span><span>: &quot;</span><span style="color:#a3be8c;">{{ taskcluster.docker.workerType }}</span><span>&quot;
+</span><span>    </span><span style="color:#bf616a;">routes</span><span>:
+</span><span>      - &quot;</span><span style="color:#a3be8c;">notify.email.{{event.head.user.email}}.on-any</span><span>&quot;
+</span><span>      - &quot;</span><span style="color:#a3be8c;">notify.irc-channel.#taskcluster-notifications.on-failed</span><span>&quot;
+</span><span>      - &quot;</span><span style="color:#a3be8c;">notify.irc-channel.#taskcluster-notifications.on-exception</span><span>&quot;
+</span><span>    </span><span style="color:#bf616a;">extra</span><span>:
+</span><span>      </span><span style="color:#bf616a;">github</span><span>:
+</span><span>        </span><span style="color:#bf616a;">env</span><span>: </span><span style="color:#d08770;">true
+</span><span>        </span><span style="color:#bf616a;">events</span><span>:
+</span><span>          - </span><span style="color:#a3be8c;">pull_request.opened
+</span><span>          - </span><span style="color:#a3be8c;">pull_request.synchronize
+</span><span>          - </span><span style="color:#a3be8c;">pull_request.reopened
+</span><span>          - </span><span style="color:#a3be8c;">push
+</span><span>    </span><span style="color:#bf616a;">payload</span><span>:
+</span><span>      </span><span style="color:#bf616a;">maxRunTime</span><span>: </span><span style="color:#d08770;">3600
+</span><span>      </span><span style="color:#bf616a;">image</span><span>: &quot;</span><span style="color:#a3be8c;">node:5</span><span>&quot;
+</span><span>      </span><span style="color:#bf616a;">command</span><span>:
+</span><span>        - &quot;</span><span style="color:#a3be8c;">/bin/bash</span><span>&quot;
+</span><span>        - &quot;</span><span style="color:#a3be8c;">-lc</span><span>&quot;
+</span><span>        - &quot;</span><span style="color:#a3be8c;">git clone {{event.head.repo.url}} repo &amp;&amp; cd repo &amp;&amp; git checkout {{event.head.sha}} &amp;&amp; npm install . &amp;&amp; npm test</span><span>&quot;
+</span><span>    </span><span style="color:#bf616a;">metadata</span><span>:
+</span><span>      </span><span style="color:#bf616a;">name</span><span>: &quot;</span><span style="color:#a3be8c;">TaskCluster GitHub Tests</span><span>&quot;
+</span><span>      </span><span style="color:#bf616a;">description</span><span>: &quot;</span><span style="color:#a3be8c;">All non-integration tests</span><span>&quot;
+</span><span>      </span><span style="color:#bf616a;">owner</span><span>: &quot;</span><span style="color:#a3be8c;">{{ event.head.user.email }}</span><span>&quot;
+</span><span>      </span><span style="color:#bf616a;">source</span><span>: &quot;</span><span style="color:#a3be8c;">{{ event.head.repo.url }}</span><span>&quot;
+</span></code></pre>
+<p>{% endraw %}</p>
+<h3 id="next-steps">Next Steps</h3>
+<p>We're working now to enable this to be triggered not only on tasks but also task-groups. Work is ongoing with that project. If you have any questions or suggestions, say hi in the <code>#taskcluster</code> channel on Mozilla irc.</p>
+
+</div>
+
+<div class="post">
+	<small>
+		Nov 14, 2015 |
+		<a href="https:&#x2F;&#x2F;imbstack.com&#x2F;fun-with-imessage&#x2F;">permalink</a>
+	</small>
+	<h2>Fun with iMessage</h2>
+	<p>A friend of mine in a group chat was wondering how long people would go between talking or who talked the most often. I became curious and after some quick <a href="http://apple.stackexchange.com/a/80025">stackoverflowing</a> I found that you already have all of the data you need locally if you use Messages on <span class="nowrap">OS X</span>. As of today on <span class="nowrap">El Capitan</span>, you can easily hop into the database with <span class="code">sqlite3 ~/Library/Messages/chat.db</span>.</p>
+<div class="note">
+Note: This only goes back as far as you used Messages on OS X. To get all of your messages from your phone, back it up to your computer and find the sqlite database in <span class="code">~/Library/Application\ Support/MobileSync/Backup/</span> <a href="http://www.wired.com/2013/11/backup-sms-iphone/">(Thanks, Wired!)</a>. You'll find that there are just a mess of files with no names to help you; picking a string from your OS X copy of the Messages db and grepping for it in the backup seems to work.
+</div>
+<p>The only tables I ended up caring about to answer this question were <span class="code">message</span> and <span class="code">handle</span>. I'll talk a bit more about how to generate this in a moment, but for now, we can look at <a href="https://imbstack.com/fun-with-imessage/#imessage-fig1">Figure 1</a> and see what the final product is.</p>
+<div id="imessage-fig1" class="figure">
+    <div></div>
+    <span class="caption pure-hidden-xs">Figure 1. Messages per day by participant.</span>
+    <span class="caption pure-visible-xs">Figure 1</span>
+</div>
+<p>From <a href="https://imbstack.com/fun-with-imessage/#imessage-fig1">Figure 1</a> we can extrapolate into the future and see that Pat will need to spend every single waking second sending texts to this group and I'm probably dead, can someone check on me?</p>
+<div class="note">
+    Note: It's <em>always</em> ok to extrapolate from two data points.
+</div>
+<p>There aren't that many steps to getting that plot put together. The first step will be to find which &quot;room&quot; your chats have been taking place in. As far as I can tell, each message is connected to a room via the <span class="code">cache_roomnames</span> column. Your chat's roomname will be something along the lines of <span class="code">chatNNNNNNNNNNNNNNNNNN</span>, where the <span class="code">N</span>'s are obviously numbers. I found the room I wanted by getting the last messages I received and then matching up a message that was from the room to its roomname.</p>
+<pre data-lang="sql" style="background-color:#2b303b;color:#c0c5ce;" class="language-sql "><code class="language-sql" data-lang="sql"><span style="color:#b48ead;">SELECT</span><span> cache_roomnames, </span><span style="color:#b48ead;">text
+</span><span style="color:#b48ead;">FROM</span><span> message
+</span><span style="color:#b48ead;">WHERE</span><span> cache_roomnames != &#39;&#39;
+</span><span style="color:#b48ead;">ORDER BY date DESC LIMIT </span><span style="color:#d08770;">10</span><span>;
+</span></code></pre>
+<p>Once you have your desired room, you can get every message in it that your heart desires. I found that pulling out just a few key columns got me what I wanted, and joining the <span class="code">handle_id</span> column to the <span class="code">handle</span> table gets you a phone number for each participant.</p>
+<pre data-lang="sql" style="background-color:#2b303b;color:#c0c5ce;" class="language-sql "><code class="language-sql" data-lang="sql"><span style="color:#b48ead;">SELECT </span><span style="color:#d08770;">M</span><span>.</span><span style="color:#d08770;">handle_id</span><span>,
+</span><span>       </span><span style="color:#d08770;">H</span><span>.</span><span style="color:#d08770;">id</span><span>,
+</span><span>       strftime(&#39;</span><span style="color:#a3be8c;">%s</span><span>&#39;, </span><span style="color:#d08770;">M</span><span>.</span><span style="color:#d08770;">date </span><span>+ strftime(&#39;</span><span style="color:#a3be8c;">%s</span><span>&#39;, &#39;</span><span style="color:#a3be8c;">2001-01-01 00:00:00</span><span>&#39;), &#39;</span><span style="color:#a3be8c;">unixepoch</span><span>&#39;, &#39;</span><span style="color:#a3be8c;">localtime</span><span>&#39;),
+</span><span>       </span><span style="color:#d08770;">M</span><span>.</span><span style="color:#d08770;">text
+</span><span style="color:#b48ead;">FROM</span><span> message AS M
+</span><span style="color:#b48ead;">LEFT OUTER JOIN</span><span> handle AS H ON </span><span style="color:#d08770;">M</span><span>.</span><span style="color:#d08770;">handle_id </span><span>= </span><span style="color:#d08770;">H</span><span>.</span><span style="color:#d08770;">rowid
+</span><span style="color:#b48ead;">WHERE </span><span style="color:#d08770;">M</span><span>.</span><span style="color:#d08770;">cache_roomnames </span><span>= &#39;</span><span style="color:#a3be8c;">chatNNNNNNNNNNNNNNNNNN</span><span>&#39;
+</span><span style="color:#b48ead;">ORDER BY date</span><span>;
+</span></code></pre>
+<p>That '2001-01-01 00:00:00' is necessary because iMessage starts counting time from 2001 for some reason I'll never understand. What you want to do at this point is up to you, but I output it as a csv and go to work from there in Python. One note to keep in mind, messages will occasionally have newlines in them, so you may want to define a newline of your own in your csv output. This will make it harder to read normally, but fixes that issue. I'm almost certain there's a better way of solving it, and if you know one, let me know!</p>
+<p>From there it's just some simple scripting to make a histogram of posts per user and plot it however you like. I have a manual <code>phone-number -&gt; human-name</code> dictionary in my code. I'm not sure if there's a way to automate this with wherever Contacts stores its data, but perhaps that's a post for another day.</p>
+<p>This got me curious, what does my history look like across <em>everyone</em> I've talked to? Well, here you go:</p>
+<div id="imessage-fig2" class="figure">
+    <div></div>
+    <span class="caption pure-hidden-xs">Figure 2. Messages per week per person.</span>
+    <span class="caption pure-visible-xs">Figure 2</span>
+</div>
+<p>In <a href="https://imbstack.com/fun-with-imessage/#imessage-fig2">Figure 2</a> I plot the messages per week from anyone who sent me over 150 messages in a week at least once since I've had the phone (arbitrary threshold to keep plot clean). With the exception of Person E and Person F, the top texter during any period of time was the person I was dating at that time. I've not revealed identities here to protect the innocent.</p>
+<p>Over the course of a normal week, when are people texting me? We can pretty much steal Github's punchcard visualization and reproduce it <a href="https://imbstack.com/fun-with-imessage/#imessage-fig3">Figure 3</a> with texts instead of commits.</p>
+<div id="imessage-fig3" class="figure">
+    <div></div>
+    <span class="caption pure-hidden-xs">Figure 3. Times when texts are happening.</span>
+    <span class="caption pure-visible-xs">Figure 3</span>
+</div>
+<script type="text/javascript">
+var punchcard = function(args) {
+    var el = d3.select(args.bindto);
+    var margin = {top: 30, right: 30, bottom: 20, left: 50};
+    var width = el[0][0].offsetWidth - margin.left - margin.right;
+    var height = width * (1/1.6) - margin.top - margin.bottom;
+
+    var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    var svg = el.append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    var x = d3.scale.linear().domain([0, 24]).range([0, width]);
+    var y = d3.scale.linear().domain([0, 6]).range([0, height]);
+
+    xAxis = d3.svg.axis().ticks(6).scale(x).orient('top').tickFormat( function(d) { return d + ':00' });
+    yAxis = d3.svg.axis().ticks(7).scale(y).orient('left').tickFormat( function(d, i) { return days[i]; });
+
+    svg.append('g').attr("class", "x axis").call(xAxis).selectAll('text').attr("dy", "-.6em");
+    svg.append('g').attr("class", "y axis").call(yAxis);
+
+
+    for (var i in days) {
+        svg.append('g')
+           .attr("transform", "translate(0," + y(i) + ")")
+           .attr("class", "x axis")
+           .call(d3.svg.axis().scale(x).ticks(24).tickFormat(''));
+    }
+
+    d3.text(args.data, function(error, text) {
+        if (error) return console.warn(error);
+        var data = d3.csv.parseRows(text)
+
+        svg.append('g')
+           .selectAll('g')
+           .data(data)
+           .enter()
+           .append('g')
+           .selectAll('g')
+           .data( function(d,i,j) { return d; } )
+           .enter()
+           .append('circle')
+           .attr('fill', '#333')
+           .attr('class','hover')
+           .attr('title', function(d,i,j) { return d })
+           .attr('cy', function(d,i,j) { return y(j) })
+           .attr('cx', function(d,i,j) { return x(i + 1) })
+           .attr('r', function(d,i,j) { return +d * 0.015 });
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+
+    // Plot of people in chat room
+    c3.generate({
+        bindto: '#imessage-fig1>div',
+        data: {
+            url: '/data/talkers.json',
+            type: 'spline',
+            mimeType: 'json'
+        },
+        axis: {
+            x: {
+                label: 'Days since Brian was in chat'
+            },
+            y: {
+                label: 'Messages per day',
+            }
+        },
+        grid: {
+            x: {
+                lines: [
+                    {value: 4, text: 'Some holiday with candy'},
+                    {value: 11, text: 'Talking about food?'},
+                    {value: 15, text: 'Someone gets a new cable box?'}
+                ]
+            }
+        }
+    });
+
+    // Plot of everyone I've talked to
+    c3.generate({
+        bindto: '#imessage-fig2>div',
+        data: {
+            url: '/data/all_talkers.json',
+            type: 'spline',
+            mimeType: 'json'
+        },
+        axis: {
+            x: {
+                label: 'Weeks since Brian had iPhone'
+            },
+            y: {
+                label: 'Messages per week',
+            }
+        }
+    });
+
+    // Punchcard for text times
+    punchcard({
+        bindto: '#imessage-fig3>div',
+        data: '/data/punchcard.csv'
+    });
+});
+</script>
+
+</div>
+
+<div class="post">
+	<small>
+		Oct 3, 2015 |
+		<a href="https:&#x2F;&#x2F;imbstack.com&#x2F;attacking-the-monolith&#x2F;">permalink</a>
+	</small>
+	<h2>Attacking the Monolith</h2>
+	<h5 id="following-is-adapted-from-a-talk-i-gave-at-cwru-link-state-2015">Following is adapted from a talk I gave at <a href="http://acm.cwru.edu/acm/conference/2015">CWRU Link State 2015</a>.</h5>
+<p>I want to start by making a simple, uncontroversial statement. One that we should all agree on, but one that is often forgotten or ignored by professional software engineers:</p>
+<blockquote>
+<p>Software has a purpose.</p>
+</blockquote>
+<p>This is simple almost to the point of tautology. However, I and most of us who've done this sort of work have lost sight of that many times before. Let me explain what I mean by this.</p>
+<p>I've been writing software for a while now. The last two of which were out in San Francisco for that big local reviews website we all know and love. The majority of our code was in a single, large, monolithic project. From when I started there, the size of our engineering team doubled and then doubled again, finishing at over 400 engineers by the time I left. Most of my time there was spent on the team responsible for building and running the tools developers used to develop. We also helped set the policies we had for how to deploy new code and even how to write it in the first place. I was involved in quite a few technical and policy decisions over the course of my time there and was a part of successes and failures. Many of both of the outcomes came as a result of either remembering or forgetting that software has a purpose.</p>
+<p>From the moment you start reading about or being taught about how to write software, you learn that modularity is important. Separation of concerns and interfaces, objects and APIs. A natural outgrowth of this is a Service Oriented Architecture. I've worked on and built both monolithic and SOA projects. I've worked on the underlying infrastructure of both as well. I've found a tendency over time for orthodoxies to build up around both camps. Software engineers, I have found, have a penchant for orthodoxy.</p>
+<p>I was lucky enough while I was in school to have worked for a networking researcher who spoke of engineering trade-offs religiously and at every opportunity. It's easy as an undergraduate computer major to fall into the trap of thinking there is one correct solution to every problem. We are all told of time and space trade-offs, but in the vacuum of a test, there is only one correct answer.</p>
+<p>A SOA has many enticing positives, but also comes with drawbacks. It also requires you to enter a different headspace. While you win strictly enforced boundaries between different elements of your system, you pay for it by needing to find a way to enforce strict interfaces. While you win fine grained scalability and flexibility, you must now build and maintain a robust service discovery layer, not to mention the actual transport in the first place. While you win the ability to use the right tool for the job, you pay for it by expanding the knowledge surface areas needed by your engineers; polyglot engineering requires frequent context switching by human beings, which will prove costly</p>
+<p>On the topic of testing (a topic very near and dear to my heart), I have found that engineers will want to build themselves false safety nets and reach across nicely defined boundaries in an effort to prevent any regressions from occurring. The warm fuzzy blanket of a proliferation of end-to-end, integration, and acceptance tests results in a combinatoric explosion in the number of tests and requires you to run disparate codebase's tests any time you deploy any service. Not even unit tests can save you: make them too brittle and they will be nearly tautological, required line-by-line changes to tests every time you change the code.</p>
+<p>My coworkers and I once came across a est that was designed to prevent PII from leaking into our logs. When an engineer tasked with upgrading an underlying library caused the test to fail, they simply inverted the condition and made the test pass. The line above the regex was a comment stating, <span class="code">#Don't allow PII in our logs!</span> The mistake was only found weeks after the code had been running in production. Remember: tests only test what you tell them to.</p>
+<p>It is tempting to blame the engineer who made that change; to laugh at them or scold them. However, if we're being completely honest with ourselves, we know that this sort of thing is a common mistake and that we all do it all of the time. The first thing a software engineer must recognize is that human beings suck at writing code. I is an inherently difficult process for our minds to create logically correct statements. There are about as many techniques that claim to alleviate these issues as there are techniques that generally fail to do so.</p>
+<blockquote>
+<p>Nothing can save you. Accept failure.</p>
+</blockquote>
+<blockquote>
+<p>But there is hope.</p>
+</blockquote>
+<p>Now, given that you will fail, what can you do about it? The most important thing you can do is <em>reduce your time to recover from failure</em>. This has two parts to it: First is being able to know when you are failing. Second is to have a way to undo or fix your bad things as soon as you can. Most major failure situations occur when we (human beings) change code.</p>
+<p>These two goals go hand-in-hand. Monitoring checks on your production code (not just &quot;does it return a 200&quot;) are very conceptually similar to the tests you would normally be writing, but they run against something real. There will always be differences between your development or staging environment and your production one. Obviously not all software is a website, but a heck of a lot of it does communicate across a network with a server in some way. Even if your application is completely standalone, it can still phone-home (for better or worse) to report failures and metrics.</p>
+<p>These are some of the most powerful things you can do as an engineer. Detecting failures once in happens is equally important to preventing failure in the first place. At that big reviews site, the CEO and VP of engineering were brothers. A fairly common occurrence was getting bug reports from their mother. These obviously became high priority bugs almost instantaneously. Don't let one of your primary lines of defence be your CEO's parents. Everyone will be less happy that way (most of all their parents).</p>
+<p>At that company, our first line of defense was testing. In our attempt to alleviate failure, we ended up with almost 60,000 tests that would be run whenever a developer made changes and also before a deploy.</p>
+<p>We invested a heck of a lot of computing power and developer effort in keeping these tests fast and un-flaky. Through a judicious application of well over 100 of Amazon's largest instances and a team of 4-8 engineers (who are more expensive than those machines) we cold run all of those tests in about 20 minutes. We applied all sorts of other efforts to reducing the flakiness of the tests. When there are false positives for test failure, you will miss the true positives more frequently.</p>
+<blockquote>
+<p>Writing good tests is really, really, really difficult.</p>
+</blockquote>
+<p>Even with all of those tests and a short stop in a staging environment before a deploy, we would still see multiple failures in production per week. We strove to deploy 3 times a day, every day. Each deploy would contain something like 15 branches. A failure when we got to prod would be extremely costly in terms of developer time. Deciding which failures were worth abort a deploy for was a stressful and difficult decision. Oftentimes a failure could've been fixed in a few minutes by rolling forward, but taking all of that time to run the tests, not to mention fixing them in the first place, generally meant that aborting was the less costly choice.</p>
+<p>This brings us to an important question. A website or any piece of software is really made up of different functions. Not in the programming &quot;function&quot; sense, but in the user facing sense. As an example, on that big reviews site, you could:</p>
+<ul>
+<li>read reviews</li>
+<li>write reviews</li>
+<li>upload pictures</li>
+<li>view pictures</li>
+<li>signup</li>
+<li>login</li>
+<li>chat with other users (how many of you knew we had that?)</li>
+<li>search for businesses</li>
+<li>search for users</li>
+<li>claim a business as your own</li>
+<li>track how users were interacting with your business</li>
+<li>buy ads</li>
+<li>view ads (most important!)</li>
+</ul>
+<p>And that is just a partial list. So, the question is</p>
+<blockquote>
+<p>How important is each part of the site in relation to each other?</p>
+</blockquote>
+<p>As a software engineer, it is embarrassing to have something you are working on be wrong. Something about the programming mindset forces us to hone in on minutiae and obsess over <em>getting it right</em>. Our deploy system had tags you could apply to the equivalent of a pull request. A common and well understood tag was &quot;Urgent.&quot; This meant that the change should be deployed ASAP, to the point of jumping in line before other requests or perhaps even being deployed on its own. The intended purpose for the tag was identifying requests that could stop us from actively losing money or stop something really bad from happening. If <em>essential</em> functionality was broken, this would be the appropriate tag to use. However, more often than note, I saw it being used for requests the really should have been tagged, &quot;Embarrassing.&quot; A button being the wrong color, mis-formatted text, or a stray comment that was ultimately harmless. Did users really care about these issues? Probably not. Did these issues really require and urgent deploy? Probably not.</p>
+<p>It's really easy to get sucked into your little bit of the puzzle and think that it has to be perfect. I've been guilty of this more than once. I think it is only natural for people who take pride in ownership to go beyond reason once in a while. We all need to remember, at the end of the day</p>
+<blockquote>
+<p>Software has a purpose</p>
+</blockquote>
+<p>Given that software has a purpose, what sort of decisions can we make? One of the most important things you will all decide in the next couple years (or next couple months) is where you will be applying your trade after you graduate from here. A common thought among graduating CS kids when I was here is that all we were looking for was a &quot;fun problem.&quot; Combine a fun problem with great compensation and we were sold. I want to argue that these should take a back seat to something more important. Whether you end up continuing into grad school, working for a company, working for the government, or something else entirely, the software you create and maintain has a purpose. Keeping that in mind and aligning that with your personal moral compass will do a lot for the world and keep you content as you work hard to keep the software working. This is not to say that we should ignore fun problems and compensation (particularly if you have student debt to pay back), but we should strive to find a way to help people in the process.</p>
+<p>I haven't found how to do this best yet, but I promise I'll keep looking.</p>
+
+</div>
+
+
+			</main>
+			</section>
+			<script type='text/javascript' src='/js/c3.min.js'></script>
+			<script type='text/javascript' src='/js/d3.min.js'></script>
+			<script type='text/javascript' src='/js/main.js'></script>
+	</body>
+
+</html>
+

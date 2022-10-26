@@ -103,9 +103,7 @@ The second surprise here is that such late TCP segments are present.
 Scrolling back through the dump output, there are many such packets -- enough that manually labeling them is infeasible.
 However, graphing the sequence numbers shows a clear pattern:
 
-<div id="notify-fig1" class="figure">
-  <img src="{{ "/img/tcp-seq-graph.png" | prepend: site.baseurl }}"/>
-</div>
+{{ figure(id="debugging-fig1", path="tcp-seq-graph.png") }}
 
 Note that this covers only the last 16ms of the connection (the horizontal axis is in seconds), carrying about 200MB of data (the vertical axis is sequence numbers, indicating bytes).
 The "fork" in the pattern shows a split between the up-to-date segments, which seem to accelerate, and the delayed segments.

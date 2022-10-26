@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width initial-scale=1" />
+
+		<title>Announcing Taskcluster Notifications</title>
+		<meta name="description" content="">
+
+		<link rel="icon" href="/favicon.ico">
+		<link href="/main.css" rel="stylesheet" type="text/css" media="all">
+	</head>
+
+	<body>
+		<div class="page-container">
+			<header class="page-header">
+				<h1><a href="/">imbstack</a></h1>
+				<div class="link-box">
+					<a href="https://github.com/imbstack">github</a>
+					<a href="https://twitter.com/imbstack">twitter</a>
+				</div>
+			</header>
+			<nav class="page-nav">
+				<input type="checkbox" id="show-nav-controller"/>
+				<hr class="left"/>
+				<label for="show-nav-controller"><h5>Read More</h5></label>
+				<hr class="right" />
+				<ul>
+					
+					
+					<li>May 3, 2020 <a href="https://imbstack.com/debugging-docker-connection-resets/">Debugging Docker Connection Reset by Peer</a></li>
+					
+					<li>Apr 21, 2017 <a href="https://imbstack.com/tc-1-0/">The Future of Taskcluster</a></li>
+					
+					<li>Mar 15, 2017 <a href="https://imbstack.com/what-and-why-is-taskcluster/">What and Why is Taskcluster</a></li>
+					
+					<li>Sep 9, 2016 <a href="https://imbstack.com/taskcluster-notify/">Announcing Taskcluster Notifications</a></li>
+					
+					<li>Nov 14, 2015 <a href="https://imbstack.com/fun-with-imessage/">Fun with iMessage</a></li>
+					
+					<li>Oct 3, 2015 <a href="https://imbstack.com/attacking-the-monolith/">Attacking the Monolith</a></li>
+					
+				</ul>
+			</nav>
+
+			<main class="page-content">
+				
+<h1 class="title">
+  Announcing Taskcluster Notifications
+</h1>
+<p class="subtitle"><strong>2016-09-09</strong></p>
+<p>One of the most requested features for Taskcluster has been a way to be notified on task completion rather than checking back in on the task-inspector tab every few minutes. As of today, taskcluster-notify makes that easy to do. If you have any experience indexing artifacts with routes in a task definition, you're already familiar with the mechanism for adding notifications to your tasks. If not, it's quite easy to figure out!</p>
+<p>This service can also be used via a simple api, if you have the correct scopes.</p>
+<p>There are (as of today) three types of notifications and four types of filters possible on these notifications.</p>
+<h3 id="notification-types">Notification Types</h3>
+<p><strong>IRC:</strong> This is only enabled on <code>irc.mozilla.org</code> for now. You can specify either a user or a channel to send a notification to upon task completion. You'll receive a message like the following:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>Task &quot;Taskcluster Notify Test&quot; complete with status &#39;completed&#39;. Inspect: https://tools.taskcluster.net/task-inspector/#f0rU3kS7RmG3xSWwbq6Ndw
+</span></code></pre>
+<p><strong>Email:</strong> We can send you both nicely formatted or plain text emails depending on which email client you want to use. You can send to any email address, so long as you have the correct scopes (we'll discuss scopes later).</p>
+<div id="notify-fig1" class="figure">
+	<img src="/img/notify-email-example.png"/>
+</div>
+<p><strong>Pulse:</strong> We can also send a Pulse message that is documented <a href="https://docs.taskcluster.net/reference/core/notify/exchanges">on this page</a>. The message is  pretty much just the status of the task.</p>
+<h3 id="filters">Filters</h3>
+<p><strong>on-any:</strong> This does what it sounds like and will notify you of task-completion no matter how it ends.</p>
+<p><strong>on-success:</strong> Only when the task completes with no errors will you get a notification.</p>
+<p><strong>on-failed:</strong> Only when the task fails for non-internal reasons will this be triggered. This could be your tests failing or a lint step failing, as examples.</p>
+<p><strong>on-exception:</strong> This is triggered when some sort of internal issue happens in Taskcluster and we had to cancel the task.</p>
+<p>More thorough (and more correct) documentation of what task statuses are can be found <a href="https://docs.taskcluster.net/reference/platform/queue/api-docs#status">on the docs site</a>.</p>
+<h3 id="route-syntax">Route Syntax</h3>
+<p>But what you've really been waiting for is to know how to use this, so here's a simple set of routes that will do some of the things you might want.</p>
+<pre data-lang="json" style="background-color:#2b303b;color:#c0c5ce;" class="language-json "><code class="language-json" data-lang="json"><span>{
+</span><span>  &quot;</span><span style="color:#a3be8c;">routes</span><span>&quot;: [
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.email.&lt;you@you.com&gt;.on-any</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.irc-user.&lt;your-mozilla-irc-nick&gt;.on-failed</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.irc-channel.&lt;a-mozilla-irc-channel&gt;.on-completed</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.pulse.&lt;a-pulse-routing-key&gt;.on-exception</span><span>&quot;
+</span><span>  ]
+</span><span>}
+</span></code></pre>
+<h3 id="scopes">Scopes</h3>
+<p>If you're using this from the api instead of via a task definition, you'll need some simple <code>notify.&lt;type&gt;.*</code> scopes of some sort. The specific ones you need are documented on the <a href="https://docs.taskcluster.net/reference/core/notify/api-docs">api docs</a>.</p>
+<p>If you're using this via task definitions, access to notifications is guarded with route scopes. As an example, to allow the taskcluster-github project to email and ping in irc when builds complete, it has the scopes</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>queue:route:notify.email.*
+</span><span>queue:route:notify.irc-channel.*
+</span><span>queue:route:notify.irc-user.*
+</span></code></pre>
+<h3 id="example">Example</h3>
+<p>Finally, an example to tie it all together. This is the as-of-this-writing <code>.taskcluster.yml</code> of the aforementioned taskcluster-github project.</p>
+<p>{% raw %}</p>
+<pre data-lang="yaml" style="background-color:#2b303b;color:#c0c5ce;" class="language-yaml "><code class="language-yaml" data-lang="yaml"><span style="color:#bf616a;">version</span><span>: </span><span style="color:#d08770;">0
+</span><span style="color:#bf616a;">metadata</span><span>:
+</span><span>  </span><span style="color:#bf616a;">name</span><span>: &quot;</span><span style="color:#a3be8c;">TaskCluster GitHub Tests</span><span>&quot;
+</span><span>  </span><span style="color:#bf616a;">description</span><span>: &quot;</span><span style="color:#a3be8c;">All non-integration tests for taskcluster github</span><span>&quot;
+</span><span>  </span><span style="color:#bf616a;">owner</span><span>: &quot;</span><span style="color:#a3be8c;">{{ event.head.user.email }}</span><span>&quot;
+</span><span>  </span><span style="color:#bf616a;">source</span><span>: &quot;</span><span style="color:#a3be8c;">{{ event.head.repo.url }}</span><span>&quot;
+</span><span style="color:#bf616a;">tasks</span><span>:
+</span><span>  - </span><span style="color:#bf616a;">provisionerId</span><span>: &quot;</span><span style="color:#a3be8c;">{{ taskcluster.docker.provisionerId }}</span><span>&quot;
+</span><span>    </span><span style="color:#bf616a;">workerType</span><span>: &quot;</span><span style="color:#a3be8c;">{{ taskcluster.docker.workerType }}</span><span>&quot;
+</span><span>    </span><span style="color:#bf616a;">routes</span><span>:
+</span><span>      - &quot;</span><span style="color:#a3be8c;">notify.email.{{event.head.user.email}}.on-any</span><span>&quot;
+</span><span>      - &quot;</span><span style="color:#a3be8c;">notify.irc-channel.#taskcluster-notifications.on-failed</span><span>&quot;
+</span><span>      - &quot;</span><span style="color:#a3be8c;">notify.irc-channel.#taskcluster-notifications.on-exception</span><span>&quot;
+</span><span>    </span><span style="color:#bf616a;">extra</span><span>:
+</span><span>      </span><span style="color:#bf616a;">github</span><span>:
+</span><span>        </span><span style="color:#bf616a;">env</span><span>: </span><span style="color:#d08770;">true
+</span><span>        </span><span style="color:#bf616a;">events</span><span>:
+</span><span>          - </span><span style="color:#a3be8c;">pull_request.opened
+</span><span>          - </span><span style="color:#a3be8c;">pull_request.synchronize
+</span><span>          - </span><span style="color:#a3be8c;">pull_request.reopened
+</span><span>          - </span><span style="color:#a3be8c;">push
+</span><span>    </span><span style="color:#bf616a;">payload</span><span>:
+</span><span>      </span><span style="color:#bf616a;">maxRunTime</span><span>: </span><span style="color:#d08770;">3600
+</span><span>      </span><span style="color:#bf616a;">image</span><span>: &quot;</span><span style="color:#a3be8c;">node:5</span><span>&quot;
+</span><span>      </span><span style="color:#bf616a;">command</span><span>:
+</span><span>        - &quot;</span><span style="color:#a3be8c;">/bin/bash</span><span>&quot;
+</span><span>        - &quot;</span><span style="color:#a3be8c;">-lc</span><span>&quot;
+</span><span>        - &quot;</span><span style="color:#a3be8c;">git clone {{event.head.repo.url}} repo &amp;&amp; cd repo &amp;&amp; git checkout {{event.head.sha}} &amp;&amp; npm install . &amp;&amp; npm test</span><span>&quot;
+</span><span>    </span><span style="color:#bf616a;">metadata</span><span>:
+</span><span>      </span><span style="color:#bf616a;">name</span><span>: &quot;</span><span style="color:#a3be8c;">TaskCluster GitHub Tests</span><span>&quot;
+</span><span>      </span><span style="color:#bf616a;">description</span><span>: &quot;</span><span style="color:#a3be8c;">All non-integration tests</span><span>&quot;
+</span><span>      </span><span style="color:#bf616a;">owner</span><span>: &quot;</span><span style="color:#a3be8c;">{{ event.head.user.email }}</span><span>&quot;
+</span><span>      </span><span style="color:#bf616a;">source</span><span>: &quot;</span><span style="color:#a3be8c;">{{ event.head.repo.url }}</span><span>&quot;
+</span></code></pre>
+<p>{% endraw %}</p>
+<h3 id="next-steps">Next Steps</h3>
+<p>We're working now to enable this to be triggered not only on tasks but also task-groups. Work is ongoing with that project. If you have any questions or suggestions, say hi in the <code>#taskcluster</code> channel on Mozilla irc.</p>
+
+
+			</main>
+			</section>
+			<script type='text/javascript' src='/js/c3.min.js'></script>
+			<script type='text/javascript' src='/js/d3.min.js'></script>
+			<script type='text/javascript' src='/js/main.js'></script>
+	</body>
+
+</html>
+

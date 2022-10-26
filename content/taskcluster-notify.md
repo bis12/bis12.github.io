@@ -19,9 +19,7 @@ Task "Taskcluster Notify Test" complete with status 'completed'. Inspect: https:
 
 __Email:__ We can send you both nicely formatted or plain text emails depending on which email client you want to use. You can send to any email address, so long as you have the correct scopes (we'll discuss scopes later).
 
-<div id="notify-fig1" class="figure">
-    <img src="{{ "/img/notify-email-example.png" | prepend: site.baseurl }}"/>
-</div>
+{{ figure(id="notify-fig1", path="notify-email-example.png") }}
 
 __Pulse:__ We can also send a Pulse message that is documented [on this page](https://docs.taskcluster.net/reference/core/notify/exchanges). The message is  pretty much just the status of the task.
 

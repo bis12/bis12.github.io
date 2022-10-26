@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width initial-scale=1" />
+
+		<title>What and Why is Taskcluster</title>
+		<meta name="description" content="">
+
+		<link rel="icon" href="/favicon.ico">
+		<link href="/main.css" rel="stylesheet" type="text/css" media="all">
+	</head>
+
+	<body>
+		<div class="page-container">
+			<header class="page-header">
+				<h1><a href="/">imbstack</a></h1>
+				<div class="link-box">
+					<a href="https://github.com/imbstack">github</a>
+					<a href="https://twitter.com/imbstack">twitter</a>
+				</div>
+			</header>
+			<nav class="page-nav">
+				<input type="checkbox" id="show-nav-controller"/>
+				<hr class="left"/>
+				<label for="show-nav-controller"><h5>Read More</h5></label>
+				<hr class="right" />
+				<ul>
+					
+					
+					<li>May 3, 2020 <a href="https://imbstack.com/debugging-docker-connection-resets/">Debugging Docker Connection Reset by Peer</a></li>
+					
+					<li>Apr 21, 2017 <a href="https://imbstack.com/tc-1-0/">The Future of Taskcluster</a></li>
+					
+					<li>Mar 15, 2017 <a href="https://imbstack.com/what-and-why-is-taskcluster/">What and Why is Taskcluster</a></li>
+					
+					<li>Sep 9, 2016 <a href="https://imbstack.com/taskcluster-notify/">Announcing Taskcluster Notifications</a></li>
+					
+					<li>Nov 14, 2015 <a href="https://imbstack.com/fun-with-imessage/">Fun with iMessage</a></li>
+					
+					<li>Oct 3, 2015 <a href="https://imbstack.com/attacking-the-monolith/">Attacking the Monolith</a></li>
+					
+				</ul>
+			</nav>
+
+			<main class="page-content">
+				
+<h1 class="title">
+  What and Why is Taskcluster
+</h1>
+<p class="subtitle"><strong>2017-03-15</strong></p>
+<p>Taskcluster is the task execution framework that supports Mozilla's continuous integration and release processes. Like any system of its size, Taskcluster can be different things to different people. Probably the most common context that it is used in is in its life as a CI system for Firefox at Mozilla. From that perspective, it is an extremely customizable framework for building your own CI system, much in the tradition of <a href="http://buildbot.net/">Buildbot</a>. Some helpful people have used the framework to build a <a href="https://tools.taskcluster.net/quickstart/">Github-specific integration</a> much like <a href="https://travis-ci.org/">Travis</a> or <a href="https://circleci.com/">CircleCI</a>, so in a sense Taskcluster is like those as well. At the end of the day, the part of Taskcluster that ties all of that together is the platform it provides for running tasks in a cluster of machines -- hence, the hard-to-type and hard-to-say name.</p>
+<p>Taskcluster does a lot of hard work. As of the last 30 days leading up to the date of this post, we've done:</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>Total Tasks
+</span><span>5,229,327
+</span><span>
+</span><span>Total Task Time
+</span><span>225.57 years
+</span><span>
+</span><span>Unique machines
+</span><span>695,734
+</span><span>
+</span><span>Average task duration
+</span><span>40.7 minutes
+</span></code></pre>
+<p>That covered 6113 <code>try</code>, 1002 <code>inbound</code>, and 134 <code>central</code> pushes, responsible for 2101346, 632790, and 252421 tasks respectively. The task time per machine averages out to about 2 hours per machine. We try to keep machines as fresh as possible (no machine lives more than 3 days), but also try to push machines up as close to the end of billing periods as possible.</p>
+<p>We'll cover a few aspects of Taskcluster here. First is our <a href="https://docs.taskcluster.net/manual/devel/principles#guiding-design-principles-for-taskcluster">guiding design principles</a> and how they help us build a robust, easy-to-use system. In the next post we'll follow the life of a task as it bumps around Taskcluster. From there we'll see how we use it at Mozilla (in combination with some of our other tools) to solve some classic CI problems. Finally we'll cover some future work.</p>
+<h3 id="guiding-principles">Guiding Principles</h3>
+<p>About a year ago the team met up for our confusingly named <a href="http://www.chesnok.com/daily/2016/03/11/workweek-tc-worker-workweek-recap/">2016 Worker Work Week</a>. One of the products of the week was a list of principles that we had been unofficially following up to that point and that we have been using to guide our decision making since then.</p>
+<h4 id="self-service">Self-service</h4>
+<p>This goes a step further than just making sure CI configuration is inside user's repositories. In addition to that we provide a flexible permissions system based on something we call <a href="https://docs.taskcluster.net/manual/integrations/apis/scopes">scopes</a>. Each action in Taskcluster can be guarded by a set of scopes (which are just strings) that a client must have. Scopes can either be an exact match, or be matched by a splat suffix.</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>Action Requires: notify.irc.bstack.on_failure
+</span><span>Client Has: notify.irc.*
+</span><span>Success: true
+</span></code></pre>
+<p>Importantly, clients can assign scopes to other clients if they already posses that scope. So this allows us to endow certain users with the ability to give scopes to other users. Entire ecosystems of scopes can exist within Taskcluster without needing to involve the Taskcluster team itself.</p>
+<p>There are a few other ways that this rule manifests, but we'll cut short here.</p>
+<h4 id="robustness">Robustness</h4>
+<p>This is not a particularly surprising rule to live by for a CI system. However, anybody who uses a CI system on a day-to-day basis probably knows this is one of the most difficult goals to achieve. I can say as a relatively new member of this team and someone who's worked on a number of other build systems that compared to how rapidly we add features to Taskcluster and how heavily used it is, it breaks quite infrequently. I think this is due to a few of the principles we have in particular:</p>
+<ul>
+<li>No state in our services … ever!</li>
+<li>No running our own datastores … ever!</li>
+<li>Anything that can return a potentially unbounded list must be paginated.</li>
+</ul>
+<p>The first two are surprisingly hard to keep and my dinosaur brain constantly wants to break them for one reason or another. Keeping discipline within the team on this point has so far always ended up producing surprising/different ways of solving problems in a manner that still allows us to rely on external providers for the Hard Parts™.</p>
+<p>Another aspect of robustness is supporting large, complex to build projects like Firefox. This guides many of the decisions we make and is something that is different between Taskcluster and something like Travis.</p>
+<h4 id="enable-rapid-change">Enable rapid change</h4>
+<p>This is very near-and-dear to our hearts on Taskcluster. It is probably the primary reason something like Taskcluster exists in the first place. Buildbot is an awesome project and when used correctly, can do amazingly complex things. 
+A recurring issue with many installs of Buildbot is that configuration becomes ossified over time. This is due to configuration taking place separately from a project's source code and the configuration being complex enough that generally people become Buildbot specialists.</p>
+<p>Taskcluster was designed from the ground up to not have this issue. A single task can easily be designated in a small yaml file and more complex graphs of tasks with dependencies can be built up without too much effort, but in either case all configuration will live in your tree, not in Taskcluster itself.</p>
+<p>Another side of this is that Taskcluster itself is easy to change and add features to. We have a few services that are completely maintained by contributors. We also have a number of services that hook into events published by Taskcluster and are run entirely by other teams within Mozilla.</p>
+<h4 id="community-friendliness">Community friendliness</h4>
+<p>As mentioned before we have parts of Taskcluster that are entirely contributor run and are looking to expand that as time goes on. Part of this is the Mozilla-y-ness of the project. Pretty much everything happens in public. Anybody can come to our weekly meetings and anybody can sit in our irc channel. We are starting weekly events that are purely for community interaction that are mostly for just hanging out and chatting about semi-related things. <a href="https://wiki.mozilla.org/TaskCluster/Reading_By_Moonlight">The meetings</a> change time every week to make it easy for people all over the world to show up. You should show up sometime and say hi!</p>
+<h3 id="the-life-of-a-task">The Life of a Task</h3>
+<p>We've talked about why Taskcluster is the way it is. Now we'll talk about how it works. We'll talk about what a task is and what happens to it. Let's meet our task.</p>
+<pre data-lang="json" style="background-color:#2b303b;color:#c0c5ce;" class="language-json "><code class="language-json" data-lang="json"><span>{
+</span><span>  &quot;</span><span style="color:#a3be8c;">taskGroupId</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">BjadQTTpRiu5RZGBKIIw-Q</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">dependencies</span><span>&quot;: [&quot;</span><span style="color:#a3be8c;">RLBIMCE-SZ-sdrmM5QInuA</span><span>&quot;],
+</span><span>  &quot;</span><span style="color:#a3be8c;">requires</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">all-completed</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">provisionerId</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">aws-provisioner-v1</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">workerType</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">taskcluster-generic</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">schedulerId</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">-</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">routes</span><span>&quot;: [
+</span><span>    &quot;</span><span style="color:#a3be8c;">index.project.taskcluster.example-task</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.email.bstack@mozilla.com.on-failed</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.email.bstack@mozilla.com.on-exception</span><span>&quot;
+</span><span>  ],
+</span><span>  &quot;</span><span style="color:#a3be8c;">priority</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">normal</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">retries</span><span>&quot;: </span><span style="color:#d08770;">5</span><span>,
+</span><span>  &quot;</span><span style="color:#a3be8c;">created</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">2017-03-15T16:31:27.771Z</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">deadline</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">2017-03-16T16:31:27.771Z</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">expires</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">2017-06-15T16:31:27.771Z</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">scopes</span><span>&quot;: [
+</span><span>    &quot;</span><span style="color:#a3be8c;">auth:aws-s3:read-write:taskcluster-backups/</span><span>&quot;
+</span><span>  ],
+</span><span>  &quot;</span><span style="color:#a3be8c;">payload</span><span>&quot;: {
+</span><span>    &quot;</span><span style="color:#a3be8c;">image</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">node:7</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">command</span><span>&quot;: [
+</span><span>      &quot;</span><span style="color:#a3be8c;">/bin/bash</span><span>&quot;,
+</span><span>      &quot;</span><span style="color:#a3be8c;">-c</span><span>&quot;,
+</span><span>      &quot;</span><span style="color:#a3be8c;">git clone https://github.com/taskcluster/taskcluster-backup.git &amp;&amp; cd taskcluster-backup &amp;&amp; yarn global add node-gyp &amp;&amp; yarn install &amp;&amp; npm run compile &amp;&amp; node ./lib/main.js backup</span><span>&quot;
+</span><span>    ],
+</span><span>    &quot;</span><span style="color:#a3be8c;">maxRunTime</span><span>&quot;: </span><span style="color:#d08770;">86400</span><span>,
+</span><span>    &quot;</span><span style="color:#a3be8c;">env</span><span>&quot;: {
+</span><span>      &quot;</span><span style="color:#a3be8c;">FOO</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">bar</span><span>&quot;
+</span><span>    }
+</span><span>  },
+</span><span>  &quot;</span><span style="color:#a3be8c;">metadata</span><span>&quot;: {
+</span><span>    &quot;</span><span style="color:#a3be8c;">name</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">A task in taskcluster</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">description</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">This does a thing in taskcluster</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">owner</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">bstack@mozilla.com</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">source</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">https://something-related-to-this.com/whatever</span><span>&quot;
+</span><span>  }
+</span><span>}
+</span></code></pre>
+<p>Hello task, nice to meet you. This format is defined by a JSON schema and has <a href="https://docs.taskcluster.net/reference/platform/queue/docs/task-schema">autogenerated docs</a> (as do all of our api endpoints).</p>
+<h4 id="the-queue-service">The Queue Service</h4>
+<p>You take that task definition and send it to the taskcluster queue. This is the piece of the system that manages tasks and task dependencies. We can specify in the requires field whether or not the task should block on the prior tasks merely finishing, or whether they need to finish successfully. In our task, <code>RLBIMCE-SZ-sdrmM5QInuA</code> must finish with a successful status before our task will begin. Let's talk about what those funny strings in <code>taskGroupId</code> and <code>dependencies</code> are and what &quot;successful&quot; means a bit more.</p>
+<p>The task IDs are generated by clients rather than the server. Our client libraries have some helper functions to generate one when you create a task. They are 22 character URL-safe base64 v4 UUIDs (see <a href="http://tools.ietf.org/html/rfc4648#section-5">RFC 4648 sec. 5</a>). Basically, these are strings that won't collide and you can safely generate as many of them as you want and use them to identify tasks and task groups within Taskcluster. Referring back to the design principles from the first post, we make the client generate these to allow for idempotent retries when creating tasks.</p>
+<p>Task groups are for the most part a convenient way of relating tasks that are part of a larger whole together for easy viewing, they don't do much more than that. Dependencies can exist between task groups.</p>
+<p>Tasks can resolve in a few different ways that have different semantic meanings. The possible task states are <code>unscheduled pending running completed failed exception</code>. Taskcluster will label tasks as <code>exception</code> if something within taskcluster caused a task to fail to complete and it will automatically retry up to the number of times you specify in <code>retries</code>. Failures that you introduce (say something like a test in your CI suite failing) will cause the task to be <code>failed</code> and these are not retried. If you want to have retries around a flaky test, you build that into your test itself.</p>
+<h4 id="the-auth-service">The Auth Service</h4>
+<p>On to some other fields in our friendly task. What are scopes and how do you use them? Every service in Taskcluster can specify that an endpoint needs a client to have certain scopes before it will run. The service that maintains clients and their relation to scopes is called the auth service. The most important <a href="https://docs.taskcluster.net/reference/platform/auth/references/api#authenticateHawk">endpoint</a> that service provides is a way to validate <a href="https://github.com/hueniverse/hawk/">Hawk</a> credentials. In this manner, we keep all credentials only known by the auth service itself and the client that has them. We can happily add new services to the Taskcluster ecosystem and trust them not to leak credentials. This aligns with our desires to be community friendly from the guiding principles.</p>
+<p>As much as possible, we try to have services have no credentials of their own. Each time a service has credentials and it tries to reduce its power to use them on behalf of a client, we have an opportunity for a <a href="https://en.wikipedia.org/wiki/Confused_deputy_problem">confused deputy</a>. Avoiding those sorts of situations are very important to us.</p>
+<h4 id="routing-events">Routing Events</h4>
+<p>One of the more confusing fields in the task definition is the <code>routes</code> field.</p>
+<pre data-lang="json" style="background-color:#2b303b;color:#c0c5ce;" class="language-json "><code class="language-json" data-lang="json"><span>{
+</span><span>  &quot;</span><span style="color:#a3be8c;">routes</span><span>&quot;: [
+</span><span>    &quot;</span><span style="color:#a3be8c;">index.project.taskcluster.example-task</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.email.bstack@mozilla.com.on-failed</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">notify.email.bstack@mozilla.com.on-exception</span><span>&quot;
+</span><span>  ]
+</span><span>}
+</span></code></pre>
+<p>All Taskcluster services can emit events into <a href="http://www.rabbitmq.com/">RabbitMQ</a> based on certain events. Unsurprisingly, all services can also listen for events. Adding routes to the routes field of a task will cause the queue to emit events on task completion. Our example task here emits 3 routes. The first one is listened for by the index service, which stores the taskId as the value to a key that is whatever the rest of that route is. So in this case, you can ask the index service for <code>project.taskcluster.example-task</code> and it will tell you whatever the most recent task that was labeled that way was. We use this for finding artifacts of the latest builds of a branch for instance. Which routes you are allowed to write to are controlled by scopes to prevent unauthorized overwrites.</p>
+<p>The <code>notify.*</code> fields route to the notifications service which can send emails or irc messages. You can ask it to alert you on failures, exceptions, success, or all of the above.</p>
+<p>These services also expose an API if you wish to add custom indexing our notifications. For instance, we have users that generate daily reports and send them to themselves with the notifications service.</p>
+<p>That brings up one other note, Taskcluster provides a hooks service that allows you to have cron-style jobs that execute based on time. This takes care of common cases like a nightly performance report or daily backups.</p>
+<h4 id="workers-and-the-provisioner">Workers and the Provisioner</h4>
+<p>We keep talking about tasks running, but where do they run and how do they do it? Tasks run on workers. Workers can be many things, but they all share a couple things:</p>
+<ul>
+<li>They ask the queue for work</li>
+<li>They have a way of running that work</li>
+<li>They report back to the queue the status of the work</li>
+</ul>
+<p>Generally what this means at this point is an instance of our <a href="https://github.com/taskcluster/docker-worker">Docker worker</a> running on a Linux machine in AWS or <a href="https://github.com/taskcluster/generic-worker">generic worker</a> on a Windows machine. The <code>payload</code> section of our task is what the worker is interested in. Once the queue gives a task to work on, the worker looks there to see what to do.</p>
+<pre data-lang="json" style="background-color:#2b303b;color:#c0c5ce;" class="language-json "><code class="language-json" data-lang="json"><span>{
+</span><span>  &quot;</span><span style="color:#a3be8c;">payload</span><span>&quot;: {
+</span><span>    &quot;</span><span style="color:#a3be8c;">image</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">node:7</span><span>&quot;,
+</span><span>    &quot;</span><span style="color:#a3be8c;">command</span><span>&quot;: [
+</span><span>      &quot;</span><span style="color:#a3be8c;">/bin/bash</span><span>&quot;,
+</span><span>      &quot;</span><span style="color:#a3be8c;">-c</span><span>&quot;,
+</span><span>      &quot;</span><span style="color:#a3be8c;">git clone https://github.com/taskcluster/taskcluster-backup.git &amp;&amp; cd taskcluster-backup &amp;&amp; yarn global add node-gyp &amp;&amp; yarn install &amp;&amp; npm run compile &amp;&amp; node ./lib/main.js backup</span><span>&quot;
+</span><span>    ],
+</span><span>    &quot;</span><span style="color:#a3be8c;">maxRunTime</span><span>&quot;: </span><span style="color:#d08770;">86400</span><span>,
+</span><span>    &quot;</span><span style="color:#a3be8c;">env</span><span>&quot;: {
+</span><span>      &quot;</span><span style="color:#a3be8c;">FOO</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">bar</span><span>&quot;
+</span><span>    }
+</span><span>  }
+</span><span>}
+</span></code></pre>
+<p>The task we've been looking at is designed to run on docker-worker. It specifies that it wants a container based on the <code>node:7</code> image to run the commands listed in the <code>command</code> field. We want the task to be killed after 24 hours, and we want the env to have a variable called <code>FOO</code> with the value of <code>bar</code> in it. It is pretty self-explanatory. How did we know we would be running this task on a docker-worker though?</p>
+<pre data-lang="json" style="background-color:#2b303b;color:#c0c5ce;" class="language-json "><code class="language-json" data-lang="json"><span>{
+</span><span>  &quot;</span><span style="color:#a3be8c;">provisionerId</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">aws-provisioner-v1</span><span>&quot;,
+</span><span>  &quot;</span><span style="color:#a3be8c;">workerType</span><span>&quot;: &quot;</span><span style="color:#a3be8c;">taskcluster-generic</span><span>&quot;
+</span><span>}
+</span></code></pre>
+<p>This tells the queue which sorts of workers should be allowed to request the task. A provisioner is a service that manages a set of machines running workers and the <code>workerType</code> is a definition within that provisioner of a type of worker. That includes things like which OS version, which cloud provider, which version of Docker, and how much space should be available on the machine in addition to which worker client is running there.</p>
+<p>We allow for many different worker types. Some of the most well supported provide some great features. Docker worker allows for an interactive session to be started with access to both the command line inside the running task and the screen output. This makes quick work of oftentimes hard-to-debug test issues that only happen in CI but not locally. Again, access to all of this is guarded by scopes.</p>
+<p>At this time there's basically one provisioner and it runs an autoscaling group of nodes in AWS that grow and shrink as demand changes in the queue. We are doing a lot of work in this part of our stack to provide more platforms to developers.</p>
+<h3 id="use-cases">Use Cases</h3>
+<p>Taskcluster does not make a full CI/CD system on its own. Mozilla has quite a few other open-source tools that make up our full set of systems. Some of these, like the service that <a href="https://github.com/integration/taskcluster">integrates us with Github</a> are managed by the Taskcluster team, while others are run by other teams within Mozilla.</p>
+<p>For the building and testing of Gecko itself, a lot of tools work together to make the system run smoothly. Two of the most important tools here are <a href="https://treeherder.mozilla.org/">Treeherder</a> and <a href="https://brasstacks.mozilla.com/orangefactor/">Orange Factor</a>. These are focused on the tests themselves, which Taskcluster does not concern itself with. They are quite powerful tools, used by developers and the tree caretakers (called sheriffs) alike. Orange Factor is one of the tools we use for tracking flaky tests. The Taskcluster team is occasionally responsible for things that show up in Orange Factor, so we keep a close eye on the dashboard as well.</p>
+<p>From there, we need to actually publish new version of Firefox to the world. <a href="https://github.com/mozilla/balrog">Balrog</a>, <a href="https://github.com/mozilla-releng/funsize">funsize</a>, and <a href="https://github.com/mozilla-releng/beetmoverscript">beetmover</a> interact with Taskcluster to make updates available for Firefox users when we push new code.</p>
+<h3 id="future-work">Future Work</h3>
+<p>Conveniently, we're beginning our quarterly planning now, so it will be easy to see across the entire team what we're going to be focusing on in the next few months.</p>
+<ul>
+<li>Get 100% of Firefox build into Taskcluster</li>
+<li>A <a href="http://www.qemu-project.org/">QEMU</a> based engine in our worker</li>
+<li>Syncing of Github and Taskcluster permissions</li>
+<li>Real-Time Queue + Worker inspection to track the full lifetime of a task</li>
+<li>Improved security audit tooling and further security hardening</li>
+<li>Redeployability and general cluster management improvements</li>
+</ul>
+<p>In general our team is working mostly on finishing the migration from Buildbot to Taskcluster at this time, but as that work wraps up, we'll move onto further integration/core improvements and making operations/redeployability easier.</p>
+<p>If you're interested in helping out, here are some good resources:</p>
+<ul>
+<li><a href="https://docs.taskcluster.net/">Docs Site</a></li>
+<li><a href="https://tools.taskcluster.net/">Tools Site</a></li>
+<li><a href="https://wiki.mozilla.org/TaskCluster">Wiki</a></li>
+<li><a href="https://github.com/taskcluster/">Github</a></li>
+<li><a href="https://www.joshmatthews.net/bugsahoy/?taskcluster=1">Bugs Ahoy!</a></li>
+<li><a href="https://bugzilla.mozilla.org/buglist.cgi?cmdtype=dorem&amp;remaction=run&amp;namedcmd=Taskcluster%20good%20first%20bugs&amp;sharer_id=464696&amp;list_id=13490731">Good First Bugs</a></li>
+<li><a href="https://wiki.mozilla.org/TaskCluster/Round_Tuit_Box">Slightly Larger Projects</a></li>
+<li><a href="https://wiki.mozilla.org/IRC">#taskcluster on Mozilla IRC</a></li>
+<li><a href="https://docs.taskcluster.net/people">People of Taskcluster</a></li>
+</ul>
+
+
+			</main>
+			</section>
+			<script type='text/javascript' src='/js/c3.min.js'></script>
+			<script type='text/javascript' src='/js/d3.min.js'></script>
+			<script type='text/javascript' src='/js/main.js'></script>
+	</body>
+
+</html>
+
