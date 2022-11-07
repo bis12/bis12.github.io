@@ -18,7 +18,7 @@ jobs:
           zola build
       - uses: actions/upload-pages-artifact@v1
         with:
-          path: 'static'
+          path: 'public'
 
   deploy:
     needs: build
