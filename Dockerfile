@@ -1,13 +1,13 @@
-FROM ruby:2.3.1
-MAINTAINER Brian Stack <im.bstack@gmail.com>
+FROM nginx:1.23.2-alpine
 
-ENV site /site
+RUN apk add zola
 
-RUN mkdir $site
-WORKDIR $site
-ADD Gemfile $site
-ADD Gemfile.lock $site
+ENV build /build
 
-RUN bundle install
-RUN apt-get update
-RUN apt-get install -y awscli
+RUN mkdir $build
+WORKDIR $build
+
+COPY . .
+RUN zola build
+RUN mv ./public/* /usr/share/nginx/html
+RUN sed -i 's/^    #error_page/    error_page/' /etc/nginx/conf.d/default.conf # Ehhhh, good enough

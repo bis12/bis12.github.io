@@ -1,5 +1,3 @@
-bstack's stuff
---------------
-This is deployed automatically by Taskcluster on push to master.
+# imbstack's personal site
 
-To run locally, `bundle exec jekyll serve`
+Theoretically this is a blog but it probably has to be updated more frequently than every-other-year so who knows what to call this.

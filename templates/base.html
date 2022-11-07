@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width initial-scale=1" />
+
+		<title>{% if page.title %}{{ page.title }}{% else %}{{ config.title }}{% endif %}</title>
+		<meta name="description" content="{{ config.description }}">
+
+		<link rel="icon" href="/favicon.ico">
+		<link href="/main.css" rel="stylesheet" type="text/css" media="all">
+	</head>
+
+	<body>
+		<div class="page-container">
+			<header class="page-header">
+				<h1><a href="/">i'm.bstack</a></h1>
+				<div class="link-box">
+					<a href="https://github.com/imbstack">github</a>
+					<a href="https://twitter.com/imbstack">twitter</a>
+					<a href="https://keybase.io/imbstack">keybase</a>
+				</div>
+			</header>
+			<nav class="page-nav">
+				<input type="checkbox" id="show-nav-controller"/>
+				<hr class="left"/>
+				<label for="show-nav-controller"><h5>Read More</h5></label>
+				<hr class="right" />
+				<ul>
+					{% set root_section = get_section(path="_index.md") %}
+					{% for page in root_section.pages %}
+					<li>{{ page.date | date(format="%b %-d, %Y") }} <a href="{{ page.path | safe }}">{{ page.title }}</a></li>
+					{% endfor %}
+				</ul>
+			</nav>
+
+			<main class="page-content">
+				{% block content %} {% endblock %}
+			</main>
+			</section>
+			<script type='text/javascript' src='/js/c3.min.js'></script>
+			<script type='text/javascript' src='/js/d3.min.js'></script>
+			<script type='text/javascript' src='/js/main.js'></script>
+	</body>
+</html>

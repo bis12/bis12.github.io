@@ -1,7 +1,7 @@
----
-layout: post
-title: What and Why is Taskcluster
----
++++
+title = "What and Why is Taskcluster"
+date = 2017-03-15
++++
 
 Taskcluster is the task execution framework that supports Mozilla's continuous integration and release processes. Like any system of its size, Taskcluster can be different things to different people. Probably the most common context that it is used in is in its life as a CI system for Firefox at Mozilla. From that perspective, it is an extremely customizable framework for building your own CI system, much in the tradition of [Buildbot](http://buildbot.net/). Some helpful people have used the framework to build a [Github-specific integration](https://tools.taskcluster.net/quickstart/) much like [Travis](https://travis-ci.org/) or [CircleCI](https://circleci.com/), so in a sense Taskcluster is like those as well. At the end of the day, the part of Taskcluster that ties all of that together is the platform it provides for running tasks in a cluster of machines -- hence, the hard-to-type and hard-to-say name.
 

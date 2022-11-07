@@ -1,7 +1,7 @@
----
-layout: post
-title:  Attacking the Monolith
----
++++
+title = "Attacking the Monolith"
+date = 2015-10-03
++++
 
 ##### Following is adapted from a talk I gave at [CWRU Link State 2015](http://acm.cwru.edu/acm/conference/2015).
 

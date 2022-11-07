@@ -1,7 +1,7 @@
----
-layout: post
-title: Announcing Taskcluster Notifications
----
++++
+title = "Announcing Taskcluster Notifications"
+date = 2016-09-09
++++
 
 One of the most requested features for Taskcluster has been a way to be notified on task completion rather than checking back in on the task-inspector tab every few minutes. As of today, taskcluster-notify makes that easy to do. If you have any experience indexing artifacts with routes in a task definition, you're already familiar with the mechanism for adding notifications to your tasks. If not, it's quite easy to figure out!
 
@@ -19,9 +19,7 @@ Task "Taskcluster Notify Test" complete with status 'completed'. Inspect: https:
 
 __Email:__ We can send you both nicely formatted or plain text emails depending on which email client you want to use. You can send to any email address, so long as you have the correct scopes (we'll discuss scopes later).
 
-<div id="notify-fig1" class="figure">
-    <img src="{{ "/img/notify-email-example.png" | prepend: site.baseurl }}"/>
-</div>
+{{ figure(id="notify-fig1", path="notify-email-example.png") }}
 
 __Pulse:__ We can also send a Pulse message that is documented [on this page](https://docs.taskcluster.net/reference/core/notify/exchanges). The message is  pretty much just the status of the task.
 

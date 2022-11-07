@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% for page in section.pages %}
+<div class="post">
+	<small>
+		{{ page.date | date(format="%b %-d, %Y") }} |
+		<a href="{{ page.path }}">permalink</a>
+	</small>
+	<h2>{{ page.title }}</h2>
+	{{ page.content | safe }}
+</div>
+{% endfor %}
+{% endblock content %}
+
