@@ -45,7 +45,6 @@ WORKDIR $build
 COPY . .
 RUN zola build
 RUN mv ./public/* /usr/share/nginx/html
-
 ```
 
 This probably isn't the optimal way of doing this but it is good enough for now! After the obvious faffing about that is always involved in getting ports and healthchecks to all line up correctly, I was rewarded with the page you're viewing currently. 

@@ -66,8 +66,6 @@ queue:route:notify.irc-user.*
 
 Finally, an example to tie it all together. This is the as-of-this-writing ``.taskcluster.yml`` of the aforementioned taskcluster-github project.
 
-
-{% raw %}
 ```yaml
 version: 0
 metadata:
@@ -103,8 +101,6 @@ tasks:
       owner: "{{ event.head.user.email }}"
       source: "{{ event.head.repo.url }}"
 ```
-{% endraw %}
-
 
 ### Next Steps
 

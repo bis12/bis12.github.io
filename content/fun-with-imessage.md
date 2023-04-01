@@ -6,7 +6,7 @@ date = 2015-11-14
 A friend of mine in a group chat was wondering how long people would go between talking or who talked the most often. I became curious and after some quick [stackoverflowing](http://apple.stackexchange.com/a/80025) I found that you already have all of the data you need locally if you use Messages on <span class="nowrap">OS X</span>. As of today on <span class="nowrap">El Capitan</span>, you can easily hop into the database with <span class="code">sqlite3 ~/Library/Messages/chat.db</span>.
 
 <div class="note">
-Note: This only goes back as far as you used Messages on OS X. To get all of your messages from your phone, back it up to your computer and find the sqlite database in <span class="code">~/Library/Application\ Support/MobileSync/Backup/</span> <a href="http://www.wired.com/2013/11/backup-sms-iphone/">(Thanks, Wired!)</a>. You'll find that there are just a mess of files with no names to help you; picking a string from your OS X copy of the Messages db and grepping for it in the backup seems to work.
+<span>Note:</span> This only goes back as far as you used Messages on OS X. To get all of your messages from your phone, back it up to your computer and find the sqlite database in <span class="code">~/Library/Application\ Support/MobileSync/Backup/</span> <a href="http://www.wired.com/2013/11/backup-sms-iphone/">(Thanks, Wired!)</a>. You'll find that there are just a mess of files with no names to help you; picking a string from your OS X copy of the Messages db and grepping for it in the backup seems to work.
 </div>
 
 The only tables I ended up caring about to answer this question were <span class="code">message</span> and <span class="code">handle</span>. I'll talk a bit more about how to generate this in a moment, but for now, we can look at [Figure 1](#imessage-fig1) and see what the final product is.
@@ -20,7 +20,7 @@ The only tables I ended up caring about to answer this question were <span class
 From [Figure 1](#imessage-fig1) we can extrapolate into the future and see that Pat will need to spend every single waking second sending texts to this group and I'm probably dead, can someone check on me?
 
 <div class="note">
-    Note: It's <em>always</em> ok to extrapolate from two data points.
+    <span>Note:</span> It's <em>always</em> ok to extrapolate from two data points.
 </div>
 
 There aren't that many steps to getting that plot put together. The first step will be to find which "room" your chats have been taking place in. As far as I can tell, each message is connected to a room via the <span class="code">cache\_roomnames</span> column. Your chat's roomname will be something along the lines of <span class="code">chatNNNNNNNNNNNNNNNNNN</span>, where the <span class="code">N</span>'s are obviously numbers. I found the room I wanted by getting the last messages I received and then matching up a message that was from the room to its roomname.

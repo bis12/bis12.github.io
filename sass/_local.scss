@@ -1,3 +1,10 @@
+$base-color: #ff6b6b; 
+$base-color-transparent: #ff6b6b10; 
+$secondary-color: #3DA5D9; 
+$secondary-color-transparent: #3DA5D910; 
+$tertiary-color: #73BFB8; 
+$tertiary-color-transparent: #73BFB810; 
+
 .page-container {
 	display: grid;
 	grid-template-columns: 1fr 70ch 1fr;
@@ -21,13 +28,13 @@ body {
 	font-family: Helvetica, sans-serif;
 	color: #111;
 	text-rendering: optimizeLegibility;
-	border-top: 2px solid #ff6b6b;
+	border-top: 2px solid $base-color;
 	margin: 0;
 	padding: 0.3em;
 }
 
 h1, h2, h3, h4, h5, h6 {
-	color: #ff6b6b;
+	color: $base-color;
 	font-family: sans-serif;
 }
 
@@ -50,8 +57,18 @@ h4 {
 }
 
 .page-header h1 a {
-	color: #ff6b6b;
+	color: $base-color;
 	text-decoration: none;
+}
+
+pre {
+	padding: 1em;
+	border-radius: 0.5em;
+}
+
+.code {
+    background-color: #f8f8f8;
+    font-family: monospace;
 }
 
 .link-box {
@@ -69,11 +86,11 @@ h4 {
 }
 
 a {
-	color: #2579A1;
+	color: $secondary-color;
 }
 
 a:visited {
-	color: #2579A1;
+	color: $secondary-color;
 }
 
 ul {
@@ -85,11 +102,6 @@ blockquote {
 	color: #888;
 	font-style: italic;
 	font-size: 1.3em;
-}
-
-.code {
-	background-color: #f8f8f8;
-	font-family: monospace;
 }
 
 .highlighter-rouge {
@@ -104,8 +116,8 @@ div.highlighter-rouge {
 }
 
 .figure {
-	border-top: 3px solid #333;
-	border-bottom: 3px solid #333;
+	border-top: 3px solid $secondary-color-transparent;
+	border-bottom: 3px solid $secondary-color-transparent;
 	padding: 0.5em;
 	margin-top: 1em;
 	margin-bottom: 1em;
@@ -119,7 +131,7 @@ div.highlighter-rouge {
 .post {
 	margin-bottom: 2em;
 	padding-bottom: 1em;
-	border-bottom: 1px solid #999;
+	border-bottom: 1px dashed $secondary-color;
 }
 
 .page-header {
@@ -164,7 +176,7 @@ div.highlighter-rouge {
 	margin-left:auto;
 	margin-right:auto;
 	width: 35%;
-	background-color: #ff6b6b;
+	background-color: $base-color;
 	height: 2px;
 	border: 0;
 }
@@ -185,7 +197,7 @@ div.highlighter-rouge {
 	text-align: left;
 	padding: 1em 0;
 	list-style-type: none;
-	border-bottom: 2px solid #ff6b6b;
+	border-bottom: 2px solid $base-color;
 }
 
 .page-nav ul li {
@@ -199,3 +211,17 @@ div.highlighter-rouge {
 	overflow: hidden;
 	min-width: 200px;
 }
+
+.note {
+	border: 1px solid;
+	border-color: $tertiary-color;
+	padding: 0.8em;
+	border-radius: 10px;
+	background-color: $tertiary-color-transparent;
+	color: $tertiary-color;
+}
+
+.note > span {
+	font-weight: bold;
+}
+
